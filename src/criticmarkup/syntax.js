@@ -17,11 +17,12 @@ export function hasCriticMarkup(text) {
 
 // Accept all changes: keep insertions, drop deletions, keep new in substitutions,
 // keep highlighted text, drop comments. Strips @author: prefixes.
+const stripAuthor = s => s.trim().replace(/^@[\w.]+:\s*/, '')
+
 export function acceptAll(md) {
   return md
-    .replace(/\{~~([\s\S]*?)~>([\s\S]*?)~~\}/g, (_, _old, n) => n.trim())
-    .replace(/\{\+\+([\s\S]*?)\+\+\}/g, (_, inner) =>
-      inner.replace(/^@[\w.]+:\s*/, '').trim())
+    .replace(/\{~~([\s\S]*?)~>([\s\S]*?)~~\}/g, (_, _old, n) => stripAuthor(n))
+    .replace(/\{\+\+([\s\S]*?)\+\+\}/g, (_, inner) => stripAuthor(inner))
     .replace(/\{--([\s\S]*?)--\}/g, '')
     .replace(/\{==([\s\S]*?)==\}/g, (_, inner) => inner.trim())
     .replace(/\{>>([\s\S]*?)<<\}/g, '')
@@ -33,10 +34,9 @@ export function acceptAll(md) {
 // keep highlighted text, drop comments.
 export function rejectAll(md) {
   return md
-    .replace(/\{~~([\s\S]*?)~>([\s\S]*?)~~\}/g, (_, o) => o.trim())
+    .replace(/\{~~([\s\S]*?)~>([\s\S]*?)~~\}/g, (_, o) => stripAuthor(o))
     .replace(/\{\+\+([\s\S]*?)\+\+\}/g, '')
-    .replace(/\{--([\s\S]*?)--\}/g, (_, inner) =>
-      inner.replace(/^@[\w.]+:\s*/, '').trim())
+    .replace(/\{--([\s\S]*?)--\}/g, (_, inner) => stripAuthor(inner))
     .replace(/\{==([\s\S]*?)==\}/g, (_, inner) => inner.trim())
     .replace(/\{>>([\s\S]*?)<<\}/g, '')
     .replace(/\n{3,}/g, '\n\n')
