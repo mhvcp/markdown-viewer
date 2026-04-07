@@ -1,0 +1,36 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolbar-divider {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: #444;
+  margin: 0 4px;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 2px;
+}
+
+.comment-btn {
+  color: #f0c040;
+  border-color: transparent;
+}
+.comment-btn:hover {
+  color: #f5d060;
+  background: #2a2a1a;
+  border-color: #555;
+}
+
+.save-btn {
+  color: #6bcb77;
+}
+.save-btn:hover {
+  color: #80e080;
+  background: #1a2a1a;
+}

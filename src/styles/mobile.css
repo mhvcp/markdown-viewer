@@ -1,0 +1,70 @@
+@media (max-width: 767px) {
+  /* Header: tighten up */
+  .editor-header {
+    padding: 0 8px;
+    height: 48px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .app-title { font-size: 13px; }
+  .file-name { max-width: 110px; font-size: 12px; }
+
+  /* Hide non-essential header items on mobile */
+  .header-center { display: none; }
+  .user-avatar { width: 22px; height: 22px; }
+
+  /* Full-width panes */
+  .editor-body {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .editor-body .editor-pane,
+  .editor-body .preview-pane {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Mobile tab bar */
+  .mobile-tabs {
+    display: flex;
+    height: 48px;
+    flex-shrink: 0;
+    background: #242424;
+    border-top: 1px solid #333;
+  }
+
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .tab-btn.active {
+    color: #fff;
+    border-bottom: 2px solid #4285F4;
+  }
+
+  /* Dialog: full width on small screens */
+  .dialog {
+    width: 96vw;
+    max-height: 85vh;
+  }
+
+  /* Preview padding reduction */
+  .preview-content {
+    padding: 16px;
+    font-size: 14px;
+  }
+}
+
+/* Desktop: hide mobile-only elements */
+@media (min-width: 768px) {
+  .mobile-tabs { display: none; }
+}
