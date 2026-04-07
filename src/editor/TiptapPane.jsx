@@ -1,6 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, forwardRef, useState, useCallback } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/extension-bubble-menu'
+import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { marked } from 'marked'
 import { criticMarkupPlugin } from '../criticmarkup/marked-plugin.js'
