@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/auth-context.jsx'
 import { listFolderContents, listSharedDrives } from './drive-api.js'
 
@@ -9,218 +9,150 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-// Root view: shows "My Drive" entry + all Shared Drives
-function RootView({ sharedDrives, loadingDrives, onEnter }) {
-  return (
-    <div className="fb-list">
-      {/* My Drive */}
+// ── Single tree node (folder or file) ────────────────────────────────────────
+
+function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNewFile }) {
+  const isFolder = entry.mimeType === FOLDER_MIME || entry._isFolder
+  const [open, setOpen] = useState(false)
+  const [children, setChildren] = useState(null) // null = not loaded yet
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const toggle = async () => {
+    if (open) { setOpen(false); return }
+    if (children === null) {
+      setLoading(true)
+      setErr(null)
+      try {
+        const items = await listFolderContents(accessToken, entry.id)
+        setChildren(items)
+      } catch (e) {
+        setErr('Failed to load')
+      } finally {
+        setLoading(false)
+      }
+    }
+    setOpen(true)
+  }
+
+  const indent = depth * 14 // px per level
+
+  if (!isFolder) {
+    const isActive = entry.id === currentFileId
+    return (
       <button
-        className="fb-item fb-folder"
-        onClick={() => onEnter({ id: 'root', name: 'My Drive' })}
+        className={`tree-file${isActive ? ' active' : ''}`}
+        style={{ paddingLeft: 16 + indent }}
+        onClick={() => onFilePicked({ id: entry.id, name: entry.name })}
+        title={entry.name}
       >
-        <span className="fb-icon">🗂</span>
-        <span className="fb-name">My Drive</span>
-        <span className="fb-chevron">›</span>
+        <span className="tree-file-name">{entry.name.replace(/\.md$/i, '')}</span>
+        <span className="tree-file-date">{formatDate(entry.modifiedTime)}</span>
+      </button>
+    )
+  }
+
+  const folders = children?.filter(c => c.mimeType === FOLDER_MIME) ?? []
+  const files   = children?.filter(c => c.mimeType !== FOLDER_MIME) ?? []
+
+  return (
+    <div className="tree-folder-wrap">
+      <button className="tree-folder" style={{ paddingLeft: 10 + indent }} onClick={toggle}>
+        <span className="tree-arrow">{loading ? '·' : open ? '▾' : '▸'}</span>
+        <span className="tree-folder-name">{entry.name}</span>
+        {open && (
+          <span
+            className="tree-new"
+            role="button"
+            tabIndex={0}
+            title="New file here"
+            onClick={(e) => { e.stopPropagation(); onNewFile?.(entry.id) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onNewFile?.(entry.id) } }}
+          >
+            +
+          </span>
+        )}
       </button>
 
-      {/* Shared Drives section */}
-      {loadingDrives ? (
-        <div className="fb-status">Loading shared drives…</div>
-      ) : sharedDrives.length > 0 ? (
-        <>
-          <div className="fb-section-label">Shared Drives</div>
-          {sharedDrives.map((drive) => (
-            <button
-              key={drive.id}
-              className="fb-item fb-folder fb-shared-drive"
-              onClick={() => onEnter({ id: drive.id, name: drive.name, isSharedDrive: true })}
-            >
-              <span className="fb-icon">🏢</span>
-              <span className="fb-name">{drive.name}</span>
-              <span className="fb-chevron">›</span>
-            </button>
+      {err && (
+        <div className="tree-status tree-err" style={{ paddingLeft: 18 + indent }}>{err}</div>
+      )}
+
+      {open && children !== null && (
+        <div className="tree-children">
+          {folders.map(c => (
+            <TreeNode key={c.id} entry={{ ...c, _isFolder: true }} depth={depth + 1}
+              currentFileId={currentFileId} accessToken={accessToken}
+              onFilePicked={onFilePicked} onNewFile={onNewFile} />
           ))}
-        </>
-      ) : null}
+          {files.map(c => (
+            <TreeNode key={c.id} entry={c} depth={depth + 1}
+              currentFileId={currentFileId} accessToken={accessToken}
+              onFilePicked={onFilePicked} onNewFile={onNewFile} />
+          ))}
+          {folders.length === 0 && files.length === 0 && (
+            <div className="tree-status" style={{ paddingLeft: 18 + (depth + 1) * 14 }}>empty</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-const PATH_STACK_KEY = 'vcp_path_stack'
+// ── Folder browser shell ──────────────────────────────────────────────────────
 
-function loadPathStack() {
-  try { return JSON.parse(sessionStorage.getItem(PATH_STACK_KEY)) } catch { return null }
-}
-
-export default function FolderBrowser({ currentFileId, onFilePicked, onNewFileInFolder, onFolderChange }) {
+export default function FolderBrowser({ currentFileId, onFilePicked, onNewFileInFolder, isMobile, onClose }) {
   const { accessToken } = useAuth()
+  const [roots, setRoots] = useState(null)   // null = loading
+  const [err, setErr]     = useState(null)
 
-  // null = show root (My Drive + Shared Drives chooser)
-  // array = path stack of { id, name } entries
-  const [pathStack, setPathStack] = useState(() => loadPathStack())
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [sharedDrives, setSharedDrives] = useState([])
-  const [loadingDrives, setLoadingDrives] = useState(true)
-
-  // Load shared drives once on mount
-  useEffect(() => {
-    listSharedDrives(accessToken)
-      .then(setSharedDrives)
-      .catch(() => {}) // graceful — user may not have shared drives
-      .finally(() => setLoadingDrives(false))
+  const loadRoots = useCallback(async () => {
+    setErr(null)
+    setRoots(null)
+    try {
+      const drives = await listSharedDrives(accessToken)
+      const entries = [
+        { id: 'root', name: 'My Drive', _isFolder: true, mimeType: FOLDER_MIME },
+        ...drives.map(d => ({ id: d.id, name: d.name, _isFolder: true, mimeType: FOLDER_MIME })),
+      ]
+      setRoots(entries)
+    } catch (e) {
+      setErr(e.message)
+    }
   }, [accessToken])
 
-  const currentFolder = pathStack ? pathStack[pathStack.length - 1] : null
+  useEffect(() => { loadRoots() }, [loadRoots])
 
-  // Notify parent whenever current folder changes
-  useEffect(() => {
-    onFolderChange?.(currentFolder)
-  }, [currentFolder, onFolderChange])
-
-  const loadFolder = useCallback(
-    async (folderId) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const files = await listFolderContents(accessToken, folderId)
-        setItems(files)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [accessToken],
-  )
-
-  useEffect(() => {
-    if (currentFolder) loadFolder(currentFolder.id)
-  }, [currentFolder, loadFolder])
-
-  const enterFolder = (entry) => {
-    setPathStack((prev) => {
-      const next = prev ? [...prev, entry] : [entry]
-      sessionStorage.setItem(PATH_STACK_KEY, JSON.stringify(next))
-      return next
-    })
+  const handleFilePicked = (file) => {
+    onFilePicked(file)
+    if (isMobile) onClose?.()
   }
-
-  const navigateTo = (index) => {
-    if (index < 0) {
-      sessionStorage.removeItem(PATH_STACK_KEY)
-      setPathStack(null)
-    } else {
-      setPathStack((prev) => {
-        const next = prev.slice(0, index + 1)
-        sessionStorage.setItem(PATH_STACK_KEY, JSON.stringify(next))
-        return next
-      })
-    }
-  }
-
-  const refresh = () => {
-    if (currentFolder) loadFolder(currentFolder.id)
-    else {
-      setLoadingDrives(true)
-      listSharedDrives(accessToken)
-        .then(setSharedDrives)
-        .catch(() => {})
-        .finally(() => setLoadingDrives(false))
-    }
-  }
-
-  const folders = items.filter((f) => f.mimeType === FOLDER_MIME)
-  const files = items.filter((f) => f.mimeType !== FOLDER_MIME)
 
   return (
-    <aside className="folder-browser">
-      {/* Breadcrumb */}
-      <div className="fb-breadcrumb">
-        {/* Home crumb — always shown */}
-        <span className="fb-crumb-item">
-          <button
-            className={`fb-crumb-btn ${!pathStack ? 'active' : ''}`}
-            onClick={() => navigateTo(-1)}
-            title="Drive root"
-          >
-            ⌂
-          </button>
-        </span>
-
-        {pathStack && pathStack.map((crumb, i) => (
-          <span key={crumb.id} className="fb-crumb-item">
-            <span className="fb-crumb-sep">›</span>
-            <button
-              className={`fb-crumb-btn ${i === pathStack.length - 1 ? 'active' : ''}`}
-              onClick={() => navigateTo(i)}
-              title={crumb.name}
-            >
-              {crumb.name}
-            </button>
-          </span>
-        ))}
-      </div>
-
-      {/* Toolbar */}
-      <div className="fb-toolbar">
-        <button className="fb-action-btn" onClick={refresh} title="Refresh" disabled={loading || loadingDrives}>
-          ↻
-        </button>
-        {currentFolder && (
-          <button
-            className="fb-action-btn"
-            onClick={() => onNewFileInFolder(currentFolder.id)}
-            title="New .md file in this folder"
-          >
-            + New
-          </button>
+    <aside className={`folder-browser${isMobile ? ' mobile-drawer' : ''}`}>
+      <div className="fb-tree-header">
+        <span className="fb-tree-title">Files</span>
+        <button className="fb-icon-btn" onClick={loadRoots} title="Refresh">↻</button>
+        {isMobile && (
+          <button className="fb-icon-btn fb-close-btn" onClick={onClose} title="Close">✕</button>
         )}
       </div>
 
-      {/* Root view or folder contents */}
-      {!pathStack ? (
-        <RootView
-          sharedDrives={sharedDrives}
-          loadingDrives={loadingDrives}
-          onEnter={enterFolder}
-        />
-      ) : (
-        <div className="fb-list">
-          {loading && <div className="fb-status">Loading…</div>}
-          {error && <div className="fb-status fb-error">{error}</div>}
-
-          {!loading && !error && items.length === 0 && (
-            <div className="fb-status fb-empty">Empty folder</div>
-          )}
-
-          {folders.map((folder) => (
-            <button
-              key={folder.id}
-              className="fb-item fb-folder"
-              onClick={() => enterFolder({ id: folder.id, name: folder.name })}
-            >
-              <span className="fb-icon">📁</span>
-              <span className="fb-name">{folder.name}</span>
-              <span className="fb-chevron">›</span>
-            </button>
-          ))}
-
-          {files.map((file) => (
-            <button
-              key={file.id}
-              className={`fb-item fb-file ${file.id === currentFileId ? 'active' : ''}`}
-              onClick={() => onFilePicked({ id: file.id, name: file.name })}
-              title={file.name}
-            >
-              <span className="fb-icon">📄</span>
-              <span className="fb-name">{file.name}</span>
-              <span className="fb-date">{formatDate(file.modifiedTime)}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="fb-tree-scroll">
+        {err && <div className="tree-status tree-err" style={{ padding: '10px 12px' }}>{err}</div>}
+        {roots === null && !err && <div className="tree-status" style={{ padding: '10px 12px' }}>Loading…</div>}
+        {roots?.map(entry => (
+          <TreeNode
+            key={entry.id}
+            entry={entry}
+            depth={0}
+            currentFileId={currentFileId}
+            accessToken={accessToken}
+            onFilePicked={handleFilePicked}
+            onNewFile={onNewFileInFolder}
+          />
+        ))}
+      </div>
     </aside>
   )
 }

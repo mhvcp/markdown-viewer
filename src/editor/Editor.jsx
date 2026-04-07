@@ -217,13 +217,20 @@ export default function Editor() {
 
       {/* Editor body */}
       <div className="editor-main">
-        {sidebarOpen && !isMobile && (
-          <FolderBrowser
-            currentFileId={currentFile?.id}
-            onFilePicked={handleFilePicked}
-            onNewFileInFolder={() => setIsNewFileOpen(true)}
-            onFolderChange={setCurrentBrowseFolder}
-          />
+        {sidebarOpen && (
+          <>
+            {isMobile && (
+              <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+            )}
+            <FolderBrowser
+              currentFileId={currentFile?.id}
+              onFilePicked={handleFilePicked}
+              onNewFileInFolder={() => setIsNewFileOpen(true)}
+              onFolderChange={setCurrentBrowseFolder}
+              isMobile={isMobile}
+              onClose={() => setSidebarOpen(false)}
+            />
+          </>
         )}
 
         <div className={`editor-body view-${effectiveView}`}>
