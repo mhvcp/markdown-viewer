@@ -69,6 +69,9 @@ const TiptapPane = forwardRef(function TiptapPane(
   // Track-changes: on blur, diff baseline → current and reload if changed
   useEffect(() => {
     if (!editor || !tracking || !onChange) return
+    // Reset baseline to current content when tracking is turned on, so only
+    // edits made *after* enabling track changes are captured.
+    baselineMd.current = lastMd.current
     const handleBlur = () => {
       const current = lastMd.current
       const tracked = applyTrackChanges(baselineMd.current, current)

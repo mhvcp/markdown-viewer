@@ -402,7 +402,7 @@ export default function Editor({ onOpenCapture }) {
               <TiptapPane
                 ref={tiptapRef}
                 content={content}
-                onChange={effectiveView === 'split' || (isMobile && effectiveView === 'preview') ? setContent : undefined}
+                onChange={setContent}
                 onCommentRequest={openCommentDialog}
                 tracking={isTracking}
                 author={userInfo?.email?.split('@')[0] || userInfo?.name?.split(' ').map(p => p[0].toLowerCase()).join('') || ''}

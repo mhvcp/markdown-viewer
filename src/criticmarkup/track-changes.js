@@ -140,7 +140,8 @@ function opsToMarkup(ops) {
 
     } else if (
       op.type === 'del' && next?.type === 'ins' &&
-      !hasCritic(op.v) && !hasCritic(next.v)
+      !hasCritic(op.v) && !hasCritic(next.v) &&
+      !op.v.includes('~~') && !next.v.includes('~~')
     ) {
       // Substitution: {~~ old ~> new ~~}  (old = del, new = ins)
       const oldCore = op.v.trim()
