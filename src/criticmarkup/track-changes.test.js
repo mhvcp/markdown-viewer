@@ -3,38 +3,7 @@ import { applyTrackChanges } from './track-changes.js'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-const tc = (before, after, author, date) => applyTrackChanges(before, after, author, date)
-
-// ─── author attribution ───────────────────────────────────────────────────────
-
-describe('author attribution', () => {
-  it('appends {>> @handle (date): edit <<} when author provided', () => {
-    const r = tc('Hello world', 'Hello earth', 'mh', '2026-04-07')
-    expect(r).toContain('{>> @mh (2026-04-07): edit <<}')
-  })
-
-  it('prepends @ if missing', () => {
-    const r = tc('Hello world', 'Hello earth', 'ej', '2026-04-07')
-    expect(r).toContain('{>> @ej')
-  })
-
-  it('keeps @ if already present', () => {
-    const r = tc('Hello world', 'Hello earth', '@jnk', '2026-04-07')
-    expect(r).toContain('{>> @jnk')
-    expect(r).not.toContain('@@jnk')
-  })
-
-  it('no attribution when no author', () => {
-    const r = tc('Hello world', 'Hello earth')
-    expect(r).not.toContain('{>>')
-  })
-
-  it('no attribution when no changes', () => {
-    const r = tc('Hello world', 'Hello world', 'mh', '2026-04-07')
-    expect(r).toBe('Hello world')
-    expect(r).not.toContain('{>>')
-  })
-})
+const tc = (before, after) => applyTrackChanges(before, after)
 
 // ─── no-op ───────────────────────────────────────────────────────────────────
 
@@ -100,7 +69,6 @@ describe('substitution', () => {
   it('substitution order: old first, new second', () => {
     const r = tc('foo bar', 'foo baz')
     expect(r).toMatch(/\{~~ bar ~> baz ~~\}/)
-    // old = bar, new = baz — NOT the other way around
     expect(r).not.toMatch(/\{~~ baz ~> bar ~~\}/)
   })
 
@@ -110,8 +78,6 @@ describe('substitution', () => {
 
   it('multi-word substitution', () => {
     const r = tc('The quick brown fox', 'The slow red fox')
-    // LCS preserves the space between words as an eq token, so each word gets
-    // its own substitution rather than one combined block — both are correct.
     expect(r).toContain('{~~ quick ~> slow ~~}')
     expect(r).toContain('{~~ brown ~> red ~~}')
     expect(r).toContain('fox')
@@ -123,20 +89,15 @@ describe('substitution', () => {
 describe('mixed operations', () => {
   it('delete and append', () => {
     const r = tc('Hello world', 'Hi there planet')
-    // "Hello" → "Hi", "world" → "there planet" or similar — at minimum no plain text corruption
     expect(r).toContain('{~~')
     expect(r).not.toBe('Hello world')
   })
 
   it('insert + delete in different positions', () => {
     const r = tc('Alpha Beta Gamma', 'Alpha NEW Beta')
-    // LCS may match "Beta" in the right position (giving {++ NEW ++} + {-- Gamma --})
-    // or match spaces as eq (giving substitutions). Either is a valid diff result.
-    // What must hold: Alpha is unchanged, and the result is not plain/unmodified.
     expect(r).toContain('Alpha')
     expect(r).not.toBe('Alpha Beta Gamma')
     expect(r).not.toBe('Alpha NEW Beta')
-    // At minimum some markup must be present
     expect(r).toMatch(/\{[+~-]/)
   })
 })
@@ -145,9 +106,8 @@ describe('mixed operations', () => {
 
 describe('whitespace', () => {
   it('preserves leading space outside markup', () => {
-    const r = tc('Hello world', 'Hello  world') // extra space
-    // extra whitespace token is an insertion
-    expect(r).not.toMatch(/\{[+-]+ \s/)  // space must NOT be inside markup
+    const r = tc('Hello world', 'Hello  world')
+    expect(r).not.toMatch(/\{[+-]+ \s/)
   })
 
   it('newline in diff does not break markup delimiters', () => {
@@ -157,13 +117,12 @@ describe('whitespace', () => {
   })
 })
 
-// ─── atomic CriticMarkup blocks ──────────────────────────────────────────────
+// ─── atomic CriticMarkup blocks — pass-through ───────────────────────────────
 
 describe('existing CriticMarkup is never re-wrapped', () => {
   it('existing insertion passes through unchanged', () => {
     const before = 'Hello {++ world ++}'
-    const after  = 'Hello {++ world ++}'
-    expect(tc(before, after)).toBe(before)
+    expect(tc(before, before)).toBe(before)
   })
 
   it('existing deletion passes through unchanged', () => {
@@ -190,11 +149,8 @@ describe('existing CriticMarkup is never re-wrapped', () => {
     const before = '{++ existing ++}'
     const after  = '{++ existing ++} and more'
     const r = tc(before, after)
-    // "and more" should be wrapped as a new insertion
     expect(r).toContain('{++ existing ++}')
     expect(r).toContain('{++ and more ++}')
-    // The existing block must not be re-wrapped (no {++ ... {++ nesting)
-    // Use a non-greedy check: only flag if one {++ is inside another's content
     expect(r).not.toMatch(/\{\+\+[^}]*\{\+\+/)
   })
 
@@ -204,18 +160,59 @@ describe('existing CriticMarkup is never re-wrapped', () => {
     const r = tc(before, after)
     expect(r).toContain('{~~ old ~> new ~~}')
     expect(r).toContain('{++ added ++}')
-    // the substitution must not be re-wrapped
     expect(r).not.toMatch(/\{~~.*\{~~/)
   })
 
   it('catastrophic nesting regression — does not produce nested markup', () => {
-    // Reported bug: track changes was producing {~~ besten? {~~ ~> {~~ ~> ...
     const before = 'Wie geht das am besten?'
     const after  = 'Wie geht das am besten? Wie geht das weiter?'
     const r = tc(before, after)
-    // Must contain no nested CriticMarkup
     expect(r).not.toMatch(/\{[~+-].*\{[~+-]/)
     expect(r).toContain('{++')
+  })
+})
+
+// ─── deleting CriticMarkup blocks ────────────────────────────────────────────
+
+describe('deleting existing CriticMarkup blocks', () => {
+  it('{++ x ++} deleted → rejected insertion → empty string', () => {
+    const r = tc('Hello {++ world ++}', 'Hello')
+    // The insertion is rejected — "world" never landed, nothing to show
+    expect(r).not.toContain('{++')
+    expect(r).not.toContain('{--')
+    expect(r).toContain('Hello')
+  })
+
+  it('{-- x --} deleted → confirmed deletion, keep the mark', () => {
+    const r = tc('Hello {-- old --} world', 'Hello world')
+    // The deletion block itself was deleted — it's still gone, keep the mark
+    expect(r).toContain('{-- old --}')
+  })
+
+  it('{~~ old ~> new ~~} deleted → new text was visible, now deleted → {-- new --}', () => {
+    const r = tc('Hello {~~ world ~> earth ~~}', 'Hello')
+    expect(r).toContain('{-- earth --}')
+    expect(r).not.toContain('{~~')
+  })
+
+  it('{== x ==} deleted → highlighted text removed → {-- x --}', () => {
+    const r = tc('Hello {== important ==} world', 'Hello world')
+    expect(r).toContain('{-- important --}')
+    expect(r).not.toContain('{==')
+  })
+
+  it('{>> comment <<} deleted → removed silently', () => {
+    const r = tc('Hello {>> @alice: note <<} world', 'Hello world')
+    expect(r).not.toContain('{>>')
+    expect(r).not.toContain('{--')
+    expect(r).toContain('Hello')
+  })
+
+  it('plain text + CriticMarkup mixed deletion', () => {
+    // User had "Hello {++ added ++} world" and deleted the whole thing
+    const r = tc('Hello {++ added ++} world', 'Hello')
+    expect(r).toContain('{-- world --}')
+    expect(r).not.toContain('{++')
   })
 })
 
@@ -223,36 +220,37 @@ describe('existing CriticMarkup is never re-wrapped', () => {
 
 describe('edge cases', () => {
   it('from empty to text', () => {
-    const r = tc('', 'Hello world')
-    expect(r).toBe('{++ Hello world ++}')
+    expect(tc('', 'Hello world')).toBe('{++ Hello world ++}')
   })
 
   it('from text to empty', () => {
-    const r = tc('Hello world', '')
-    expect(r).toBe('{-- Hello world --}')
+    expect(tc('Hello world', '')).toBe('{-- Hello world --}')
   })
 
   it('single character change', () => {
-    const r = tc('cat', 'bat')
-    expect(r).toContain('{~~')
+    expect(tc('cat', 'bat')).toContain('{~~')
   })
 
   it('punctuation-only change', () => {
-    const r = tc('Hello world.', 'Hello world!')
-    expect(r).toContain('{~~')
+    expect(tc('Hello world.', 'Hello world!')).toContain('{~~')
   })
 
   it('does not double-wrap when called twice', () => {
     const before = 'Hello world'
     const after  = 'Hello earth'
-    const first  = tc(before, after)     // → Hello {~~ world ~> earth ~~}
-    const second = tc(first, first)      // identical → no change
+    const first  = tc(before, after)
+    const second = tc(first, first)
     expect(second).toBe(first)
   })
 
   it('self-diff is always a no-op', () => {
-    // tc(x, x) must always return x unchanged — the true idempotency check
     const marked = 'Foo {~~ bar ~> qux ~~} baz'
     expect(tc(marked, marked)).toBe(marked)
+  })
+
+  it('no spurious comment markers appended on any edit', () => {
+    // Regression: old code appended {>> @handle: edit <<} on every blur
+    const r = tc('Hello world', 'Hello earth')
+    expect(r).not.toContain('{>>')
   })
 })

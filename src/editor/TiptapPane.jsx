@@ -71,7 +71,7 @@ const TiptapPane = forwardRef(function TiptapPane(
     if (!editor || !tracking || !onChange) return
     const handleBlur = () => {
       const current = lastMd.current
-      const tracked = applyTrackChanges(baselineMd.current, current, author)
+      const tracked = applyTrackChanges(baselineMd.current, current)
       if (tracked !== current) {
         lastMd.current = tracked
         onChange(tracked)

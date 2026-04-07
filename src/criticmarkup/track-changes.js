@@ -1,10 +1,11 @@
 // Word-level diff that produces CriticMarkup annotations.
-// Used by PreviewPane in tracking mode: on blur, compare markdown before/after
+// Used by TiptapPane in tracking mode: on blur, compare markdown before/after
 // editing and wrap differences in {++ ++} / {-- --} / {~~ ~> ~~}.
 //
 // Key invariants:
 //   • Existing CriticMarkup blocks are atomic tokens — never re-wrapped
 //   • Leading/trailing whitespace is kept outside markup delimiters
+//   • Deleting a CriticMarkup block is handled gracefully (see deletedCriticToMarkup)
 
 // CriticMarkup patterns used to find atomic blocks (order: sub before del/ins)
 const CM_BLOCK = /\{~~[\s\S]*?~~\}|\{\+\+[\s\S]*?\+\+\}|\{--[\s\S]*?--\}|\{==[\s\S]*?==\}|\{>>[\s\S]*?<<\}/g
@@ -84,6 +85,49 @@ function wrapCore(text, makeMarkup) {
   return lead + makeMarkup(core) + trail
 }
 
+// When the user deletes an existing CriticMarkup block, convert it to the
+// appropriate output rather than passing through or nesting:
+//   {++ x ++} deleted  → rejected insertion → '' (text never landed)
+//   {-- x --} deleted  → confirmed deletion → keep as-is
+//   {~~ o ~> n ~~} deleted → n was visible, user removed it → {-- n --}
+//   {== x ==} deleted  → highlighted text removed → {-- x --}
+//   {>> ... <<} deleted → comment removed → ''
+function deletedCriticToMarkup(token) {
+  const t = token.trim()
+  if (/^\{\+\+/.test(t)) return ''          // rejected insertion
+  if (/^\{--/.test(t)) return token          // keep deletion mark
+  const sub = t.match(/^\{~~([\s\S]*?)~>([\s\S]*?)~~\}$/)
+  if (sub) {
+    const n = sub[2].trim()
+    return n ? `{-- ${n} --}` : ''
+  }
+  const hi = t.match(/^\{==([\s\S]*?)==\}$/)
+  if (hi) {
+    const x = hi[1].trim()
+    return x ? `{-- ${x} --}` : ''
+  }
+  if (/^\{>>/.test(t)) return ''            // comment removed
+  return token                               // unknown, pass through
+}
+
+// Process a del op that contains CriticMarkup blocks.
+// Split on atomic CM blocks and handle each segment individually.
+function delWithCriticToMarkup(text) {
+  const re = new RegExp(CM_BLOCK.source, 'g')
+  let out = '', pos = 0, m
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > pos) {
+      out += wrapCore(text.slice(pos, m.index), c => `{-- ${c} --}`)
+    }
+    out += deletedCriticToMarkup(m[0])
+    pos = m.index + m[0].length
+  }
+  if (pos < text.length) {
+    out += wrapCore(text.slice(pos), c => `{-- ${c} --}`)
+  }
+  return out
+}
+
 // Build annotated markdown; del + ins fused into substitution where possible
 function opsToMarkup(ops) {
   let out = ''
@@ -110,11 +154,14 @@ function opsToMarkup(ops) {
     } else if (op.type === 'ins' && !hasCritic(op.v)) {
       out += wrapCore(op.v, c => `{++ ${c} ++}`)
 
-    } else if (op.type === 'del' && !hasCritic(op.v)) {
-      out += wrapCore(op.v, c => `{-- ${c} --}`)
+    } else if (op.type === 'del') {
+      // Deletion — may or may not contain CriticMarkup blocks
+      out += hasCritic(op.v)
+        ? delWithCriticToMarkup(op.v)
+        : wrapCore(op.v, c => `{-- ${c} --}`)
 
     } else {
-      out += op.v  // CriticMarkup block or unhandled edge — pass through unchanged
+      out += op.v  // ins containing CriticMarkup — pass through
     }
   }
   return out
@@ -122,19 +169,14 @@ function opsToMarkup(ops) {
 
 /**
  * Compare two markdown strings and return `after` annotated with CriticMarkup.
- * Existing CriticMarkup blocks in either string are never re-wrapped.
+ * Existing CriticMarkup blocks in either string are treated as atomic tokens
+ * and are never re-wrapped. Deleting a CriticMarkup block is handled correctly
+ * (see deletedCriticToMarkup).
  *
  * @param {string} before  - original markdown
  * @param {string} after   - edited markdown
- * @param {string} [author] - handle of the editor, e.g. '@mh' or 'mh'
- * @param {string} [date]   - ISO date string, defaults to today
  */
-export function applyTrackChanges(before, after, author, date) {
+export function applyTrackChanges(before, after) {
   if (before === after) return after
-  const result = opsToMarkup(mergeOps(diffTokens(tokenize(before), tokenize(after))))
-  if (!author || result === after) return result
-  // Append a single attribution comment so reviewers know who made the changes
-  const h = author.startsWith('@') ? author : `@${author}`
-  const d = date || new Date().toISOString().split('T')[0]
-  return `${result}{>> ${h} (${d}): edit <<}`
+  return opsToMarkup(mergeOps(diffTokens(tokenize(before), tokenize(after))))
 }
