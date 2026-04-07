@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/auth-context.jsx'
 import CodeMirrorPane from './CodeMirrorPane.jsx'
-import PreviewPane from './PreviewPane.jsx'
+import TiptapPane from './TiptapPane.jsx'
 import Toolbar from './Toolbar.jsx'
 import CommentDialog from './CommentDialog.jsx'
 import NewFileDialog from './NewFileDialog.jsx'
@@ -25,7 +25,10 @@ const LAST_FILE_KEY = 'vcp_last_file'
 
 export default function Editor() {
   const { accessToken, userInfo, signOut } = useAuth()
-  const editorRef = useRef(null)
+  // eslint-disable-next-line no-unused-vars
+  const editorRef  = useRef(null)
+  const tiptapRef  = useRef(null)
+  const autosaveTimer = useRef(null)
 
   const [content, setContent] = useState(WELCOME)
   const [currentFile, setCurrentFile] = useState(() => {
@@ -58,6 +61,15 @@ export default function Editor() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Autosave: 2 s after last content change (only when a file is open)
+  useEffect(() => {
+    if (!currentFile) return
+    setSaveStatus('Unsaved')
+    clearTimeout(autosaveTimer.current)
+    autosaveTimer.current = setTimeout(() => handleSave(), 2000)
+    return () => clearTimeout(autosaveTimer.current)
+  }, [content]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ctrl+S / Cmd+S
   useEffect(() => {
@@ -115,17 +127,25 @@ export default function Editor() {
   }, [accessToken])
 
   const openCommentDialog = (selText) => {
-    const sel = selText !== undefined ? selText : (editorRef.current?.getSelection() || '')
+    const sel = selText !== undefined
+      ? selText
+      : (tiptapRef.current?.getSelection() || editorRef.current?.getSelection() || '')
     setSelectedText(sel)
     setIsCommentOpen(true)
   }
 
-  const handleCommentInsert = (markup) => {
-    if (editorRef.current) {
-      // CodeMirror is mounted: use it so cursor position is preserved
+  const handleCommentInsert = (markup, handle, commentText) => {
+    if (tiptapRef.current) {
+      // Tiptap is active: insert as a proper CriticComment node
+      tiptapRef.current.insertComment({
+        author: handle || userInfo?.name?.split(' ')[0]?.toLowerCase() || '',
+        date: new Date().toISOString().split('T')[0],
+        text: commentText || '',
+        selectedText,
+      })
+    } else if (editorRef.current) {
       editorRef.current.insertText(markup)
     } else {
-      // Mobile preview mode: CodeMirror not rendered, patch markdown directly
       setContent(prev => {
         if (selectedText && prev.includes(selectedText)) return prev.replace(selectedText, markup)
         return prev + '\n' + markup
@@ -245,7 +265,8 @@ export default function Editor() {
           )}
           {(effectiveView === 'split' || effectiveView === 'preview') && (
             <div className="preview-pane">
-              <PreviewPane
+              <TiptapPane
+                ref={tiptapRef}
                 content={content}
                 onChange={effectiveView === 'split' || (isMobile && effectiveView === 'preview') ? setContent : undefined}
                 onCommentRequest={openCommentDialog}
