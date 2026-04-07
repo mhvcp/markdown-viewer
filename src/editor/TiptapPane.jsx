@@ -11,7 +11,7 @@ import {
   CriticComment,
 } from '../criticmarkup/tiptap-extensions.js'
 import { serializeToMarkdown } from './tiptap-serializer.js'
-import { applyTrackChanges } from '../criticmarkup/track-changes.js'
+import { TrackChanges } from '../criticmarkup/track-changes-extension.js'
 
 marked.use(criticMarkupPlugin())
 
@@ -20,7 +20,7 @@ function markdownToHtml(md) {
   try { return marked.parse(md) } catch { return `<p>${md}</p>` }
 }
 
-const CRITIC_EXTENSIONS = [
+const CRITIC_MARK_EXTENSIONS = [
   CriticInsertion,
   CriticDeletion,
   CriticHighlight,
@@ -34,21 +34,21 @@ const TiptapPane = forwardRef(function TiptapPane(
   { content, onChange, onCommentRequest, tracking = false, author = '' },
   ref,
 ) {
-  const lastMd   = useRef(content)    // tracks last markdown we set/got
-  const baselineMd = useRef(content)  // snapshot at focus for track-changes
+  const lastMd = useRef(content)
   const [tapComment, setTapComment] = useState(null)
 
   const editor = useEditor({
-    extensions: [StarterKit, ...CRITIC_EXTENSIONS],
+    extensions: [
+      StarterKit,
+      ...CRITIC_MARK_EXTENSIONS,
+      TrackChanges.configure({ tracking, author }),
+    ],
     content: markdownToHtml(content),
     editable: !!onChange,
     onUpdate({ editor }) {
       const md = serializeToMarkdown(editor.getJSON())
       lastMd.current = md
       onChange?.(md)
-    },
-    onFocus() {
-      baselineMd.current = lastMd.current
     },
   })
 
@@ -57,7 +57,6 @@ const TiptapPane = forwardRef(function TiptapPane(
     if (!editor || editor.isFocused) return
     if (content === lastMd.current) return
     lastMd.current = content
-    baselineMd.current = content
     editor.commands.setContent(markdownToHtml(content), false)
   }, [content, editor])
 
@@ -66,25 +65,15 @@ const TiptapPane = forwardRef(function TiptapPane(
     editor?.setEditable(!!onChange, false)
   }, [editor, onChange])
 
-  // Track-changes: on blur, diff baseline → current and reload if changed
+  // Keep TrackChanges extension options in sync with props
   useEffect(() => {
-    if (!editor || !tracking || !onChange) return
-    // Reset baseline to current content when tracking is turned on, so only
-    // edits made *after* enabling track changes are captured.
-    baselineMd.current = lastMd.current
-    const handleBlur = () => {
-      const current = lastMd.current
-      const tracked = applyTrackChanges(baselineMd.current, current, author)
-      if (tracked !== current) {
-        lastMd.current = tracked
-        onChange(tracked)
-        editor.commands.setContent(markdownToHtml(tracked), false)
-      }
-      baselineMd.current = tracked
+    if (!editor) return
+    const ext = editor.extensionManager.extensions.find(e => e.name === 'trackChanges')
+    if (ext) {
+      ext.options.tracking = tracking
+      ext.options.author   = author
     }
-    editor.on('blur', handleBlur)
-    return () => editor.off('blur', handleBlur)
-  }, [editor, tracking, onChange])
+  }, [editor, tracking, author])
 
   // Tap/click on critic-comment nodes → show popover
   useEffect(() => {
@@ -116,7 +105,6 @@ const TiptapPane = forwardRef(function TiptapPane(
     forceContent: (md) => {
       if (!editor) return
       lastMd.current = md
-      baselineMd.current = md
       editor.commands.setContent(markdownToHtml(md), false)
     },
     // Insert CriticMarkup comment (called after dialog submit)
