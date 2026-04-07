@@ -24,7 +24,9 @@ const themeCompartment = new Compartment()
 const CodeMirrorPane = forwardRef(function CodeMirrorPane({ content, onChange, darkMode = false }, ref) {
   const containerRef = useRef(null)
   const viewRef = useRef(null)
-  const editorChangedRef = useRef(false)
+  // Set to true while we programmatically dispatch content into CodeMirror so the
+  // update listener doesn't echo the change back through onChange.
+  const programmaticRef = useRef(false)
 
   useImperativeHandle(ref, () => ({
     // Insert text at current cursor position
@@ -84,8 +86,7 @@ const CodeMirrorPane = forwardRef(function CodeMirrorPane({ content, onChange, d
         themeCompartment.of(darkMode ? oneDark : []),
         criticMarkupExtension,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            editorChangedRef.current = true
+          if (update.docChanged && !programmaticRef.current) {
             onChange(update.state.doc.toString())
           }
         }),
@@ -116,19 +117,15 @@ const CodeMirrorPane = forwardRef(function CodeMirrorPane({ content, onChange, d
     view.dispatch({ effects: themeCompartment.reconfigure(darkMode ? oneDark : []) })
   }, [darkMode])
 
-  // Sync external content changes (e.g. file load) — but skip if we just typed
+  // Sync external content changes (e.g. file load, TiptapPane edits in split mode)
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
-    if (editorChangedRef.current) {
-      editorChangedRef.current = false
-      return
-    }
     const current = view.state.doc.toString()
     if (current !== content) {
-      view.dispatch({
-        changes: { from: 0, to: current.length, insert: content },
-      })
+      programmaticRef.current = true
+      view.dispatch({ changes: { from: 0, to: current.length, insert: content } })
+      programmaticRef.current = false
     }
   }, [content])
 
