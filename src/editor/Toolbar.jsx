@@ -26,7 +26,7 @@ export default function Toolbar({ editorRef, onComment, viewMode, onViewModeChan
         onClick={() => onTrackingChange?.(!isTracking)}
         title={isTracking ? 'Tracking changes (click to disable)' : 'Track changes'}
       >
-        {isTracking ? '⏺ Track' : 'Track'}
+        Track
       </button>
 
       {!isMobile && (

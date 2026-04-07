@@ -8,7 +8,6 @@ import CommentDialog from './CommentDialog.jsx'
 import NewFileDialog from './NewFileDialog.jsx'
 import FolderBrowser from '../drive/FolderBrowser.jsx'
 import { readFile, saveFile } from '../drive/drive-api.js'
-import DiagnosticsPanel from '../debug/DiagnosticsPanel.jsx'
 import HelpPanel from './HelpPanel.jsx'
 
 const WELCOME = `# VCP Markdown Editor
@@ -117,7 +116,6 @@ export default function Editor({ onOpenCapture }) {
   const [isNewFileOpen, setIsNewFileOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [currentBrowseFolder, setCurrentBrowseFolder] = useState(null)
-  const [showDiag, setShowDiag] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [darkMode, setDarkMode] = useTheme()
 
@@ -280,7 +278,7 @@ export default function Editor({ onOpenCapture }) {
             onClick={() => setSidebarOpen((v) => !v)}
             title="Toggle file browser"
           >
-            ☰
+            Files
           </button>
           {onOpenCapture && (
             <button
@@ -337,34 +335,20 @@ export default function Editor({ onOpenCapture }) {
             />
           )}
           <button
-            className="theme-btn"
+            className="toolbar-btn theme-btn"
             onClick={() => setDarkMode(d => !d)}
             title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {darkMode ? '☀' : '🌙'}
+            {darkMode ? 'Light' : 'Dark'}
           </button>
           <button className="toolbar-btn" onClick={() => setShowHelp(true)} title="Help">
-            ?
-          </button>
-          <button className="toolbar-btn" onClick={() => setShowDiag(v => !v)} title="Diagnostics">
-            🔧
+            Help
           </button>
           <button className="toolbar-btn" onClick={signOut}>
             Sign out
           </button>
         </div>
       </header>
-
-      {/* Diagnostics overlay */}
-      {showDiag && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#1a1a1a' }}>
-          <button
-            onClick={() => setShowDiag(false)}
-            style={{ position: 'absolute', top: 12, right: 16, background: 'transparent', border: 'none', color: '#aaa', fontSize: 20, cursor: 'pointer' }}
-          >✕</button>
-          <DiagnosticsPanel />
-        </div>
-      )}
 
       {/* Editor body */}
       <div className="editor-main">
@@ -426,14 +410,14 @@ export default function Editor({ onOpenCapture }) {
             onClick={() => setIsTracking(v => !v)}
             title={isTracking ? 'Tracking changes — tap to disable' : 'Track changes'}
           >
-            {isTracking ? '⏺ Track' : 'Track'}
+            Track
           </button>
           <button
             className="tab-btn tab-btn-comment"
             onClick={() => openCommentDialog()}
             title="Add comment"
           >
-            💬
+            Comment
           </button>
           <button
             className={`tab-btn ${effectiveView === 'preview' ? 'active' : ''}`}
@@ -446,7 +430,7 @@ export default function Editor({ onOpenCapture }) {
             onClick={() => setShowHelp(true)}
             title="Help"
           >
-            ?
+            Help
           </button>
         </nav>
       )}
