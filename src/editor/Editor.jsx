@@ -8,6 +8,7 @@ import NewFileDialog from './NewFileDialog.jsx'
 import FolderBrowser from '../drive/FolderBrowser.jsx'
 import { readFile, saveFile } from '../drive/drive-api.js'
 import DiagnosticsPanel from '../debug/DiagnosticsPanel.jsx'
+import HelpPanel from './HelpPanel.jsx'
 
 const WELCOME = `# VCP Markdown Editor
 
@@ -116,6 +117,7 @@ export default function Editor() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [currentBrowseFolder, setCurrentBrowseFolder] = useState(null)
   const [showDiag, setShowDiag] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [isTracking, setIsTracking] = useState(false)
 
   // Reload last open file on mount
@@ -287,6 +289,9 @@ export default function Editor() {
               title={userInfo.name}
             />
           )}
+          <button className="toolbar-btn" onClick={() => setShowHelp(true)} title="Help">
+            ?
+          </button>
           <button className="toolbar-btn" onClick={() => setShowDiag(v => !v)} title="Diagnostics">
             🔧
           </button>
@@ -379,6 +384,13 @@ export default function Editor() {
           >
             Review
           </button>
+          <button
+            className="tab-btn"
+            onClick={() => setShowHelp(true)}
+            title="Help"
+          >
+            ?
+          </button>
         </nav>
       )}
 
@@ -399,6 +411,9 @@ export default function Editor() {
           onClose={() => setIsNewFileOpen(false)}
         />
       )}
+
+      {/* Help panel */}
+      {showHelp && <HelpPanel onClose={() => setShowHelp(false)} />}
     </div>
   )
 }
