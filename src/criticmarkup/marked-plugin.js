@@ -1,38 +1,55 @@
 // marked.js extension that renders CriticMarkup into styled HTML
+//
+// IMPORTANT: marked HTML-escapes special chars in inline text before passing
+// to the paragraph renderer. So `>` becomes `&gt;` and `<` becomes `&lt;`.
+// All regexes here must match the *HTML-escaped* form of CriticMarkup delimiters:
+//   {~~ old ~> new ~~}  →  {~~ old ~&gt; new ~~}
+//   {>> … <<}           →  {&gt;&gt; … &lt;&lt;}
 
 function applyCriticMarkup(html) {
-  // Order matters: substitution before deletion/insertion to avoid overlap
+  // 1. Substitution  {~~ old ~> new ~~}  (escaped: ~&gt;)
   html = html.replace(
-    /\{~~([\s\S]*?)~>([\s\S]*?)~~\}/g,
+    /\{~~([\s\S]*?)~&gt;([\s\S]*?)~~\}/g,
     (m, oldPart, newPart) => {
       const o = oldPart.trim().replace(/"/g, '&quot;')
       const n = newPart.trim().replace(/"/g, '&quot;')
       return `<span class="critic-sub" data-old="${o}" data-new="${n}" contenteditable="false"><del class="critic-deletion">${oldPart.trim()}</del><ins class="critic-insertion">${newPart.trim()}</ins></span>`
     },
   )
+
+  // 2. Insertion  {++ text ++}
   html = html.replace(
     /\{\+\+([\s\S]*?)\+\+\}/g,
-    (m, inner) => `<ins class="critic-insertion" data-critic="${encodeURIComponent(m)}">${inner}</ins>`,
+    (m, inner) => `<ins class="critic-insertion">${inner}</ins>`,
   )
+
+  // 3. Deletion  {-- text --}
   html = html.replace(
     /\{--([\s\S]*?)--\}/g,
-    (m, inner) => `<del class="critic-deletion" data-critic="${encodeURIComponent(m)}">${inner}</del>`,
+    (m, inner) => `<del class="critic-deletion">${inner}</del>`,
   )
+
+  // 4. Highlight  {== text ==}
   html = html.replace(
     /\{==([\s\S]*?)==\}/g,
-    (m, inner) => `<mark class="critic-highlight" data-critic="${encodeURIComponent(m)}">${inner}</mark>`,
+    (m, inner) => `<mark class="critic-highlight">${inner}</mark>`,
   )
-  html = html.replace(/\{>>([\s\S]*?)<<\}/g, (m, content) => {
-    const safe = content.trim().replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const encoded = encodeURIComponent(m)
-    // Parse VCP format: @handle (date): text
-    const vcpMatch = safe.match(/^(@\w+)\s+\(([^)]+)\):\s*(.+)$/)
+
+  // 5. Comment  {>> @handle (date): text <<}  (escaped: &gt;&gt; … &lt;&lt;)
+  html = html.replace(/\{&gt;&gt;([\s\S]*?)&lt;&lt;\}/g, (m, content) => {
+    // content is already HTML-escaped; decode just enough to parse structure
+    const raw = content.trim()
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, '&')
+    const vcpMatch = raw.match(/^(@\w+)\s+\(([^)]+)\):\s*(.+)$/)
     if (vcpMatch) {
       const [, handle, date, text] = vcpMatch
-      return `<span class="critic-comment" data-critic="${encoded}" data-author="${handle}" data-date="${date}" title="${handle} (${date}): ${text}"><span class="critic-comment-icon">&#x1F4AC;</span><span class="critic-comment-bubble"><strong>${handle}</strong> <time>${date}</time><br>${text}</span></span>`
+      const safeText = text.replace(/"/g, '&quot;')
+      return `<span class="critic-comment" data-author="${handle}" data-date="${date}" title="${handle} (${date}): ${safeText}"><span class="critic-comment-icon">&#x1F4AC;</span><span class="critic-comment-bubble"><strong>${handle}</strong> <time>${date}</time><br>${safeText}</span></span>`
     }
-    return `<span class="critic-comment" data-critic="${encoded}" title="${safe}"><span class="critic-comment-icon">&#x1F4AC;</span><span class="critic-comment-bubble">${safe}</span></span>`
+    return `<span class="critic-comment" title="${raw}"><span class="critic-comment-icon">&#x1F4AC;</span><span class="critic-comment-bubble">${raw}</span></span>`
   })
+
   return html
 }
 
@@ -45,7 +62,6 @@ export function criticMarkupPlugin() {
         html = applyCriticMarkup(html)
         return `<p>${html}</p>\n`
       },
-      // Also apply to list items and blockquotes
       listitem({ tokens }) {
         let html = this.parser.parseInline(tokens)
         html = applyCriticMarkup(html)
