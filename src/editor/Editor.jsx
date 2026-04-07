@@ -96,7 +96,7 @@ Tap **💬** in the toolbar or select text and tap 💬 in the bubble menu. Ente
 
 const LAST_FILE_KEY = 'vcp_last_file'
 
-export default function Editor() {
+export default function Editor({ onOpenCapture }) {
   const { accessToken, userInfo, signOut } = useAuth()
   // eslint-disable-next-line no-unused-vars
   const editorRef  = useRef(null)
@@ -244,6 +244,15 @@ export default function Editor() {
           >
             ☰
           </button>
+          {onOpenCapture && (
+            <button
+              className="toolbar-btn"
+              onClick={onOpenCapture}
+              title="Go to Capture / Dump screen"
+            >
+              Capture
+            </button>
+          )}
           <button
             className="toolbar-btn"
             onClick={() => setIsNewFileOpen(true)}

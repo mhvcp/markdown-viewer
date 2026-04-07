@@ -148,6 +148,11 @@ export async function listClients(token, clientsFolderId) {
   return (data.files || []).filter(f => !f.name.startsWith('_'))
 }
 
+// List engagement folders under /vcp/clients/ (used by CaptureScreen for context chips)
+export async function listEngagements(token, clientsFolderId) {
+  return listClients(token, clientsFolderId)
+}
+
 // Save a file to a folder (used for inbox saves)
 export async function saveToFolder(token, folderId, filename, content) {
   return createFile(token, filename, content, folderId)

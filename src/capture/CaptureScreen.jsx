@@ -137,6 +137,14 @@ export default function CaptureScreen({ onOpenEditor }) {
       {/* Header */}
       <header className="capture-header">
         <span className="app-title">VCP</span>
+        <button
+          className="toolbar-btn"
+          onClick={() => onOpenEditor('browse')}
+          style={{ marginLeft: 8, fontSize: 13 }}
+          title="Go to Editor"
+        >
+          Editor
+        </button>
         {userInfo && (
           <div className="capture-user">
             {userInfo.picture && (

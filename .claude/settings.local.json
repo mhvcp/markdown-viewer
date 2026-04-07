@@ -10,7 +10,22 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git branch:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Read(//home/node/.ssh/**)",
+      "Bash(ssh-add -l)",
+      "Bash(ssh:*)",
+      "Bash(git push:*)",
+      "Bash(pkill -f \"vite\")",
+      "WebFetch(domain:github.com)",
+      "Bash(node:*)",
+      "Bash(git clone:*)",
+      "Bash(wc:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")",
+      "Bash(pkill -f \"vite --host\")",
+      "Bash(npx vite:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d['version']\\)\")",
+      "Bash(jobs)",
+      "Bash(npm test:*)"
     ]
   }
 }
