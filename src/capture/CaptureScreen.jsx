@@ -39,44 +39,37 @@ function deriveAuthor(userInfo) {
     .toLowerCase();
 }
 
+function formatSlug(slug) {
+  return slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export default function CaptureScreen({ onOpenEditor, onOpenKanban, asSheet, onClose }) {
   const { accessToken, userInfo } = useAuth();
   const textRef = useRef(null);
 
-  // VCP folder IDs
-  const [vcpFolders, setVcpFolders] = useState(null);
-  const [vcpError, setVcpError] = useState(null);
-
-  // Context options (dynamic engagements + static)
-  const [contexts, setContexts] = useState(STATIC_CONTEXTS);
+  const [vcpFolders, setVcpFolders]     = useState(null);
+  const [vcpError, setVcpError]         = useState(null);
+  const [contexts, setContexts]         = useState(STATIC_CONTEXTS);
   const [selectedContext, setSelectedContext] = useState("other");
-
-  // Form state
-  const [rawText, setRawText] = useState("");
-  const [type, setType] = useState("note"); // 'note' | 'content+task'
-  const [taskTitle, setTaskTitle] = useState("");
-  const [source, setSource] = useState("manual"); // updated to 'paste' on paste event
-
-  // Processing state
+  const [rawText, setRawText]           = useState("");
+  const [type, setType]                 = useState("note");
+  const [taskTitle, setTaskTitle]       = useState("");
+  const [source, setSource]             = useState("manual");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveConfirmation, setSaveConfirmation] = useState("");
-  const [geminiError, setGeminiError] = useState("");
+  const [isSaving, setIsSaving]         = useState(false);
+  const [status, setStatus]             = useState(""); // feedback line
+  const [statusKind, setStatusKind]     = useState(""); // "" | "error" | "ok"
 
-  // Load VCP folders and engagements on mount
   useEffect(() => {
     findVCPFolders(accessToken)
       .then(async (folders) => {
         setVcpFolders(folders);
         if (folders.engagementsId) {
-          const engagements = await listEngagements(
-            accessToken,
-            folders.engagementsId,
-          );
-          const engCtx = engagements.map((e) => ({
-            id: e.name,
-            label: formatSlug(e.name),
-          }));
+          const engagements = await listEngagements(accessToken, folders.engagementsId);
+          const engCtx = engagements.map((e) => ({ id: e.name, label: formatSlug(e.name) }));
           setContexts([...engCtx, ...STATIC_CONTEXTS]);
           if (engCtx.length > 0) setSelectedContext(engCtx[0].id);
         }
@@ -84,15 +77,11 @@ export default function CaptureScreen({ onOpenEditor, onOpenKanban, asSheet, onC
       .catch((err) => setVcpError(err.message));
   }, [accessToken]);
 
-  // Detect paste to set source
-  const handlePaste = () => {
-    setSource("paste");
-  };
-
-  const handleProcessWithGemini = useCallback(async () => {
+  const handleGemini = useCallback(async () => {
     if (!rawText.trim()) return;
     setIsProcessing(true);
-    setGeminiError("");
+    setStatus("Processing…");
+    setStatusKind("");
     try {
       const result = await processCapture(accessToken, rawText, contexts);
       setRawText(result.cleaned_content);
@@ -102,9 +91,12 @@ export default function CaptureScreen({ onOpenEditor, onOpenKanban, asSheet, onC
       }
       if (result.suggested_type) setType(result.suggested_type);
       if (result.task_title) setTaskTitle(result.task_title);
-      setSource("dictation"); // Gemini processed = dictation flow
+      setSource("dictation");
+      setStatus("Ready to save");
+      setStatusKind("ok");
     } catch (err) {
-      setGeminiError(err.message);
+      setStatus(err.message);
+      setStatusKind("error");
     } finally {
       setIsProcessing(false);
     }
@@ -113,214 +105,101 @@ export default function CaptureScreen({ onOpenEditor, onOpenKanban, asSheet, onC
   const handleSave = useCallback(async () => {
     if (!rawText.trim()) return;
     if (!vcpFolders) {
-      alert(
-        "VCP inbox folder not found. Make sure /vcp/inbox/ exists in your Drive.",
-      );
+      setStatus("Inbox folder not found — check Drive setup.");
+      setStatusKind("error");
       return;
     }
     setIsSaving(true);
+    setStatus("Saving…");
+    setStatusKind("");
     try {
-      const author = deriveAuthor(userInfo);
-      const captured = new Date().toISOString();
       const frontmatter = buildFrontmatter({
         context: selectedContext,
         type,
-        ...(type === "content+task" && taskTitle
-          ? { task_title: taskTitle }
-          : {}),
-        author,
-        captured,
+        ...(type === "content+task" && taskTitle ? { task_title: taskTitle } : {}),
+        author: deriveAuthor(userInfo),
+        captured: new Date().toISOString(),
         source,
       });
-      const content = frontmatter + rawText;
       const filename = buildFilename(selectedContext, source);
-      await saveToFolder(accessToken, vcpFolders.inboxId, filename, content);
-      setSaveConfirmation(`Saved to inbox: ${filename}`);
+      await saveToFolder(accessToken, vcpFolders.inboxId, filename, frontmatter + rawText);
       setRawText("");
       setTaskTitle("");
       setType("note");
       setSource("manual");
+      setStatus("Saved ✓");
+      setStatusKind("ok");
       if (asSheet && onClose) {
-        setTimeout(onClose, 1200);
+        setTimeout(onClose, 900);
       } else {
-        setTimeout(() => setSaveConfirmation(""), 4000);
+        setTimeout(() => setStatus(""), 3000);
       }
     } catch (err) {
-      alert(`Save failed: ${err.message}`);
+      setStatus(`Save failed: ${err.message}`);
+      setStatusKind("error");
     } finally {
       setIsSaving(false);
     }
-  }, [
-    accessToken,
-    rawText,
-    vcpFolders,
-    selectedContext,
-    type,
-    taskTitle,
-    source,
-    userInfo,
-  ]);
+  }, [accessToken, rawText, vcpFolders, selectedContext, type, taskTitle, source, userInfo, asSheet, onClose]);
+
+  const busy = isProcessing || isSaving;
 
   return (
     <div className="capture-shell">
-      {/* Header — hidden when rendered as a bottom sheet */}
-      <header className="capture-header" style={asSheet ? { display: 'none' } : undefined}>
-        <span className="app-title">VCP</span>
-        <button
-          className="toolbar-btn"
-          onClick={() => onOpenEditor("browse")}
-          style={{ marginLeft: 8, fontSize: 13 }}
-          title="Go to Editor"
-        >
-          Editor
-        </button>
-        {onOpenKanban && (
-          <button
-            className="toolbar-btn"
-            onClick={onOpenKanban}
-            style={{ marginLeft: 4, fontSize: 13 }}
-            title="Kanban board"
-          >
-            Board
-          </button>
-        )}
-        {userInfo && (
-          <div className="capture-user">
-            {userInfo.picture && (
-              <img
-                src={userInfo.picture}
-                alt={userInfo.name}
-                className="user-avatar"
-              />
-            )}
-            <span className="capture-username">
-              {userInfo.given_name || userInfo.name}
-            </span>
-          </div>
-        )}
-      </header>
+      {!asSheet && (
+        <header className="capture-header">
+          <span className="app-title">MD</span>
+          {onOpenEditor && (
+            <button className="toolbar-btn" onClick={() => onOpenEditor("browse")}>
+              Editor
+            </button>
+          )}
+          {onOpenKanban && (
+            <button className="toolbar-btn" onClick={onOpenKanban}>
+              Board
+            </button>
+          )}
+          {userInfo?.picture && (
+            <img src={userInfo.picture} alt={userInfo.name} className="user-avatar" style={{ marginLeft: "auto" }} />
+          )}
+        </header>
+      )}
 
       <div className="capture-body">
-        {/* VCP folder error */}
-        {vcpError && (
-          <div className="capture-warning">
-            ⚠ {vcpError} — save will be disabled until resolved.
-          </div>
-        )}
+        {vcpError && <div className="capture-warning">⚠ {vcpError}</div>}
 
-        {/* Main text area */}
         <textarea
           ref={textRef}
           className="capture-textarea"
           value={rawText}
-          onChange={(e) => {
-            setRawText(e.target.value);
-            setSource("manual");
-          }}
-          onPaste={handlePaste}
-          placeholder="Tap here and dictate, paste, or type…"
+          onChange={(e) => { setRawText(e.target.value); setSource("manual"); setStatus(""); }}
+          onPaste={() => setSource("paste")}
+          placeholder="Dictate, paste, or type…"
           autoFocus
+          disabled={busy}
         />
 
-        {/* Gemini button */}
-        <button
-          className="gemini-btn"
-          onClick={handleProcessWithGemini}
-          disabled={isProcessing || !rawText.trim()}
-        >
-          {isProcessing ? "⏳ Processing…" : "✨ Process with Gemini"}
-        </button>
-        {geminiError && <p className="capture-error">{geminiError}</p>}
-
-        {/* Divider */}
-        <hr className="capture-divider" />
-
-        {/* Context picker */}
-        <div className="capture-section">
-          <span className="capture-label">Context</span>
-          <div className="context-chips">
-            {contexts.map((ctx) => (
-              <button
-                key={ctx.id}
-                className={`chip ${selectedContext === ctx.id ? "active" : ""}`}
-                onClick={() => setSelectedContext(ctx.id)}
-              >
-                {ctx.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Type toggle */}
-        <div className="capture-section">
-          <span className="capture-label">Type</span>
-          <div className="type-toggle">
-            <button
-              className={`toggle-btn ${type === "note" ? "active" : ""}`}
-              onClick={() => setType("note")}
-            >
-              📝 Note
-            </button>
-            <button
-              className={`toggle-btn ${type === "content+task" ? "active" : ""}`}
-              onClick={() => setType("content+task")}
-            >
-              ✅ Also a task
-            </button>
-          </div>
-        </div>
-
-        {/* Task title (shown when type = content+task) */}
-        {type === "content+task" && (
-          <div className="capture-section">
-            <span className="capture-label">Task title</span>
-            <input
-              className="task-title-input"
-              type="text"
-              value={taskTitle}
-              onChange={(e) => setTaskTitle(e.target.value)}
-              placeholder="One-line task description…"
-            />
-          </div>
-        )}
-
-        {/* Save button */}
-        <button
-          className="save-inbox-btn"
-          onClick={handleSave}
-          disabled={isSaving || !rawText.trim() || !vcpFolders}
-        >
-          {isSaving ? "Saving…" : "Save to Inbox"}
-        </button>
-
-        {saveConfirmation && (
-          <p className="save-confirmation">{saveConfirmation}</p>
-        )}
-
-        {/* Quick actions */}
-        <hr className="capture-divider" />
-        <div className="capture-actions">
+        <div className="capture-actions-row">
           <button
-            className="capture-action-btn"
-            onClick={() => onOpenEditor("new")}
+            className="capture-gemini-btn"
+            onClick={handleGemini}
+            disabled={busy || !rawText.trim()}
           >
-            📄 New File
+            {isProcessing ? "Processing…" : "✨ Gemini"}
           </button>
           <button
-            className="capture-action-btn"
-            onClick={() => onOpenEditor("browse")}
+            className="capture-save-btn"
+            onClick={handleSave}
+            disabled={busy || !rawText.trim() || !vcpFolders}
           >
-            📂 Browse
+            {isSaving ? "Saving…" : "Save to Inbox"}
           </button>
         </div>
+
+        {status && (
+          <p className={`capture-status ${statusKind}`}>{status}</p>
+        )}
       </div>
     </div>
   );
-}
-
-function formatSlug(slug) {
-  return slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
 }

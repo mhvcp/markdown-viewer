@@ -391,11 +391,11 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
           )}
           {onOpenCapture && (
             <button
-              className="toolbar-btn desktop-only"
+              className="toolbar-btn toolbar-btn-capture desktop-only"
               onClick={onOpenCapture}
-              title="Go to Capture / Dump screen"
+              title="Dictate or paste → Gemini cleans it up"
             >
-              Capture
+              ✨ Capture
             </button>
           )}
           {onOpenKanban && (

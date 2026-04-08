@@ -93,9 +93,9 @@ export default function MobileShell() {
         <button
           className="mobile-fab"
           onClick={() => setCaptureOpen(true)}
-          title="Capture"
+          title="Capture — dictate or paste, Gemini cleans it up"
         >
-          +
+          ✨
         </button>
       )}
 

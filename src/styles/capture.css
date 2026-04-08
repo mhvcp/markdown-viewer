@@ -10,7 +10,7 @@
 .capture-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   padding: 0 16px;
   height: 48px;
   flex-shrink: 0;
@@ -18,24 +18,13 @@
   border-bottom: 1px solid var(--border);
 }
 
-.capture-user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.capture-username {
-  font-size: 13px;
-  color: var(--text-3);
-}
-
 .capture-body {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   max-width: 640px;
   width: 100%;
   margin: 0 auto;
@@ -58,202 +47,81 @@
   color: var(--text);
   font-size: 15px;
   line-height: 1.6;
-  min-height: 180px;
+  flex: 1;
+  min-height: 120px;
   outline: none;
   padding: 14px 16px;
-  resize: vertical;
+  resize: none;
   width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   transition: border-color 0.15s;
 }
-.capture-textarea:focus {
-  border-color: var(--accent);
-}
-.capture-textarea::placeholder {
-  color: var(--text-placeholder);
-}
+.capture-textarea:focus { border-color: var(--accent); }
+.capture-textarea::placeholder { color: var(--text-placeholder); }
+.capture-textarea:disabled { opacity: 0.6; }
 
-/* ── Gemini button ───────────────────────────────────────── */
-.gemini-btn {
-  background: var(--accent-bg);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 10px 20px;
-  transition: background 0.15s, opacity 0.15s;
-  width: 100%;
-}
-.gemini-btn:hover:not(:disabled) {
-  background: var(--blue-bg);
-  color: var(--blue);
-}
-.gemini-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.capture-error {
-  color: var(--red);
-  font-size: 13px;
-  margin: 0;
-}
-
-/* ── Dividers and sections ───────────────────────────────── */
-.capture-divider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 0;
-}
-
-.capture-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.capture-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text-3);
-}
-
-/* ── Context chips ───────────────────────────────────────── */
-.context-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 5px 14px;
-  transition: background 0.1s, color 0.1s, border-color 0.1s;
-}
-.chip:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-  border-color: var(--border-2);
-}
-.chip.active {
-  background: var(--accent-bg);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ── Type toggle ─────────────────────────────────────────── */
-.type-toggle {
-  display: flex;
-  gap: 8px;
-}
-
-.toggle-btn {
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-2);
-  cursor: pointer;
-  flex: 1;
-  font-size: 13px;
-  padding: 8px 12px;
-  transition: background 0.1s, color 0.1s, border-color 0.1s;
-}
-.toggle-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.toggle-btn.active {
-  background: var(--accent-bg);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ── Task title input ────────────────────────────────────── */
-.task-title-input {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 14px;
-  outline: none;
-  padding: 9px 12px;
-  width: 100%;
-  transition: border-color 0.15s;
-}
-.task-title-input:focus { border-color: var(--accent); }
-.task-title-input::placeholder { color: var(--text-placeholder); }
-
-/* ── Save button ─────────────────────────────────────────── */
-.save-inbox-btn {
-  background: var(--green-bg);
-  border: 1px solid var(--green-border);
-  border-radius: 8px;
-  color: var(--green);
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 12px;
-  transition: background 0.15s, opacity 0.15s;
-  width: 100%;
-}
-.save-inbox-btn:hover:not(:disabled) {
-  filter: brightness(0.9);
-}
-.save-inbox-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.save-confirmation {
-  color: var(--green);
-  font-size: 13px;
-  margin: 0;
-  text-align: center;
-}
-
-/* ── Quick actions ───────────────────────────────────────── */
-.capture-actions {
+/* ── Action row: Gemini + Save ───────────────────────────── */
+.capture-actions-row {
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 }
 
-.capture-action-btn {
+.capture-gemini-btn {
+  flex: 1;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 16px;
+  transition: opacity 0.15s;
+}
+.capture-gemini-btn:hover:not(:disabled) { opacity: 0.88; }
+.capture-gemini-btn:disabled { opacity: 0.4; cursor: default; }
+
+.capture-save-btn {
+  flex: 1;
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  color: var(--text-2);
-  cursor: pointer;
-  flex: 1;
-  font-size: 14px;
-  padding: 10px;
-  transition: background 0.1s, color 0.1s;
-}
-.capture-action-btn:hover {
-  background: var(--bg-hover);
   color: var(--text);
-  border-color: var(--border-2);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 11px 16px;
+  transition: background 0.15s, opacity 0.15s;
 }
+.capture-save-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.capture-save-btn:disabled { opacity: 0.4; cursor: default; }
 
-/* ── Mobile adjustments ─────────────────────────────────── */
+/* ── Status line ─────────────────────────────────────────── */
+.capture-status {
+  font-size: 13px;
+  margin: 0;
+  color: var(--text-muted, #888);
+  text-align: center;
+}
+.capture-status.error { color: var(--red, #c0392b); }
+.capture-status.ok    { color: var(--green, #27ae60); }
+
+/* ── Blue toolbar button (desktop Capture entry point) ───── */
+.toolbar-btn-capture {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+.toolbar-btn-capture:hover { opacity: 0.88; }
+
+/* ── Mobile ──────────────────────────────────────────────── */
 @media (max-width: 767px) {
   .capture-body {
-    padding: 12px;
+    padding: 16px 12px 12px;
     gap: 12px;
   }
   .capture-textarea {
-    min-height: 140px;
-    font-size: 16px; /* prevent iOS zoom */
-  }
-  .task-title-input {
     font-size: 16px; /* prevent iOS zoom */
   }
 }
