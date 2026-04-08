@@ -27,7 +27,8 @@
       "Bash(jobs)",
       "Bash(npm test:*)",
       "Bash(python3:*)",
-      "Bash(du -sh /workspace/markdown/*)"
+      "Bash(du -sh /workspace/markdown/*)",
+      "Bash(ls README*)"
     ]
   }
 }

@@ -1,0 +1,269 @@
+/* ── Mobile shell layout ────────────────────────────────────────────────── */
+
+.mobile-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.mobile-editor-layer {
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Folder view ────────────────────────────────────────────────────────── */
+
+.folder-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.fv-header {
+  display: flex;
+  align-items: center;
+  padding: 0 12px 0 4px;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.fv-back {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--accent, #4a90e2);
+  padding: 8px 10px;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.fv-back-placeholder {
+  width: 38px;
+  flex-shrink: 0;
+}
+
+.fv-title {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fv-new-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--accent, #4a90e2);
+  padding: 6px 8px;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.fv-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fv-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  gap: 10px;
+  color: var(--text);
+}
+
+.fv-row:active {
+  background: var(--hover, rgba(0,0,0,0.05));
+}
+
+.fv-row-name {
+  flex: 1;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fv-folder .fv-row-name {
+  font-weight: 500;
+}
+
+.fv-chevron {
+  font-size: 20px;
+  color: var(--text-muted, #999);
+  flex-shrink: 0;
+}
+
+.fv-date {
+  font-size: 12px;
+  color: var(--text-muted, #999);
+  flex-shrink: 0;
+}
+
+.fv-status {
+  padding: 32px 16px;
+  color: var(--text-muted, #999);
+  font-size: 14px;
+  text-align: center;
+}
+
+.fv-error {
+  color: var(--delete-fg, #c0392b);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.fv-retry {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+/* ── Bottom tab bar ─────────────────────────────────────────────────────── */
+
+.mobile-tab-bar {
+  display: flex;
+  height: calc(54px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.mobile-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted, #999);
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.mobile-tab.active {
+  color: var(--accent, #4a90e2);
+}
+
+.mobile-tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.mobile-tab-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* ── FAB ────────────────────────────────────────────────────────────────── */
+
+.mobile-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: var(--accent, #4a90e2);
+  color: #fff;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+/* ── Capture bottom sheet ───────────────────────────────────────────────── */
+
+.capture-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.capture-sheet {
+  background: var(--bg);
+  border-radius: 16px 16px 0 0;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.capture-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 10px auto 2px;
+  flex-shrink: 0;
+}
+
+/* When capture is rendered inside the sheet, hide its own header */
+.capture-sheet .capture-header {
+  display: none;
+}
+
+.capture-sheet .capture-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Editor inside mobile shell: respect tab bar space ──────────────────── */
+
+.mobile-editor-layer .editor-shell {
+  height: 100%;
+}
+
+/* Back button style in editor header (mobile shell mode) */
+.editor-header .mobile-back-btn {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: var(--accent, #4a90e2);
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}

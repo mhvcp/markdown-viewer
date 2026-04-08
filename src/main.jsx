@@ -8,6 +8,7 @@ import "./styles/criticmarkup.css";
 import "./styles/toolbar.css";
 import "./styles/kanban.css";
 import "./styles/mobile.css";
+import "./styles/mobile-nav.css";
 import App from "./App.jsx";
 import { registerSW } from "./pwa/register-sw.js";
 

@@ -119,7 +119,7 @@ function matchesDueFilter(task, dueRange) {
   }
 }
 
-export default function KanbanScreen({ onOpenEditor, onOpenCapture }) {
+export default function KanbanScreen({ onOpenEditor, onOpenCapture, inMobileShell }) {
   const { accessToken, userInfo } = useAuth();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [editTask, setEditTask] = useState(null);
@@ -334,12 +334,12 @@ export default function KanbanScreen({ onOpenEditor, onOpenCapture }) {
     <div className="kanban-shell">
       <header className="kanban-header">
         <span className="app-title">VCP</span>
-        {onOpenEditor && (
+        {!inMobileShell && onOpenEditor && (
           <button className="toolbar-btn" onClick={onOpenEditor}>
             Editor
           </button>
         )}
-        {onOpenCapture && (
+        {!inMobileShell && onOpenCapture && (
           <button className="toolbar-btn" onClick={onOpenCapture}>
             Capture
           </button>

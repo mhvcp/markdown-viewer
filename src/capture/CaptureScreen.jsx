@@ -39,7 +39,7 @@ function deriveAuthor(userInfo) {
     .toLowerCase();
 }
 
-export default function CaptureScreen({ onOpenEditor, onOpenKanban }) {
+export default function CaptureScreen({ onOpenEditor, onOpenKanban, asSheet, onClose }) {
   const { accessToken, userInfo } = useAuth();
   const textRef = useRef(null);
 
@@ -140,7 +140,11 @@ export default function CaptureScreen({ onOpenEditor, onOpenKanban }) {
       setTaskTitle("");
       setType("note");
       setSource("manual");
-      setTimeout(() => setSaveConfirmation(""), 4000);
+      if (asSheet && onClose) {
+        setTimeout(onClose, 1200);
+      } else {
+        setTimeout(() => setSaveConfirmation(""), 4000);
+      }
     } catch (err) {
       alert(`Save failed: ${err.message}`);
     } finally {
@@ -159,8 +163,8 @@ export default function CaptureScreen({ onOpenEditor, onOpenKanban }) {
 
   return (
     <div className="capture-shell">
-      {/* Header */}
-      <header className="capture-header">
+      {/* Header — hidden when rendered as a bottom sheet */}
+      <header className="capture-header" style={asSheet ? { display: 'none' } : undefined}>
         <span className="app-title">VCP</span>
         <button
           className="toolbar-btn"

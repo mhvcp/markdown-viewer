@@ -101,7 +101,7 @@ Tap **💬** in the toolbar or select text and tap 💬 in the bubble menu. Ente
 
 const LAST_FILE_KEY = "vcp_last_file";
 
-export default function Editor({ onOpenCapture, onOpenKanban }) {
+export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBack, fileToOpen }) {
   const { accessToken, userInfo, signOut } = useAuth();
   // eslint-disable-next-line no-unused-vars
   const editorRef = useRef(null);
@@ -194,6 +194,23 @@ export default function Editor({ onOpenCapture, onOpenKanban }) {
         });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When mobile shell picks a file, load it
+  useEffect(() => {
+    if (!fileToOpen?.id || !accessToken) return;
+    readFile(accessToken, fileToOpen.id)
+      .then((text) => {
+        setContent(text);
+        setCurrentFile({ id: fileToOpen.id, name: fileToOpen.name });
+        setIsTracking(hasCriticMarkup(text));
+        sessionStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id: fileToOpen.id, name: fileToOpen.name }));
+        setSaveStatus("");
+      })
+      .catch(() => {
+        setContent("");
+        setCurrentFile({ id: fileToOpen.id, name: fileToOpen.name });
+      });
+  }, [fileToOpen?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -357,13 +374,21 @@ export default function Editor({ onOpenCapture, onOpenKanban }) {
       <header className="editor-header">
         <div className="header-left">
           <span className="app-title desktop-only">VCP MD</span>
-          <button
-            className={`toolbar-btn sidebar-toggle ${sidebarOpen ? "active" : ""}`}
-            onClick={() => setSidebarOpen((v) => !v)}
-            title="Toggle file browser"
-          >
-            Files
-          </button>
+          {hideSidebar ? (
+            onBack && (
+              <button className="mobile-back-btn" onClick={onBack} title="Back to files">
+                ← Files
+              </button>
+            )
+          ) : (
+            <button
+              className={`toolbar-btn sidebar-toggle ${sidebarOpen ? "active" : ""}`}
+              onClick={() => setSidebarOpen((v) => !v)}
+              title="Toggle file browser"
+            >
+              Files
+            </button>
+          )}
           {onOpenCapture && (
             <button
               className="toolbar-btn desktop-only"
@@ -486,7 +511,7 @@ export default function Editor({ onOpenCapture, onOpenKanban }) {
 
       {/* Editor body */}
       <div className="editor-main">
-        {sidebarOpen && (
+        {!hideSidebar && sidebarOpen && (
           <>
             {isMobile && (
               <div
