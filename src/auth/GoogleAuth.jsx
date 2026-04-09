@@ -15,7 +15,7 @@ export default function GoogleAuth() {
   const tokenClientRef = useRef(null)
   const [gisReady, setGisReady] = useState(false)
   // Only show "restoring" if we have a cached user but NO stored token (token expired)
-  const hasStoredToken = !!sessionStorage.getItem('vcp_access_token')
+  const hasStoredToken = !!localStorage.getItem('vcp_access_token')
   const [restoring, setRestoring] = useState(!!userInfo && !hasStoredToken)
 
   useEffect(() => {

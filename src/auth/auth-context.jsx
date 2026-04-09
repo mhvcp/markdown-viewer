@@ -7,10 +7,10 @@ const TOKEN_KEY = 'vcp_access_token'
 
 function loadStoredToken() {
   try {
-    const raw = sessionStorage.getItem(TOKEN_KEY)
+    const raw = localStorage.getItem(TOKEN_KEY)
     if (!raw) return null
     const { token, expiresAt } = JSON.parse(raw)
-    if (Date.now() >= expiresAt) { sessionStorage.removeItem(TOKEN_KEY); return null }
+    if (Date.now() >= expiresAt) { localStorage.removeItem(TOKEN_KEY); return null }
     return { token, expiresAt }
   } catch { return null }
 }
@@ -42,9 +42,9 @@ export function AuthProvider({ children }) {
   const setAccessToken = useCallback((token, expiresAt) => {
     setAccessTokenState(token)
     if (token && expiresAt) {
-      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, expiresAt }))
+      localStorage.setItem(TOKEN_KEY, JSON.stringify({ token, expiresAt }))
     } else {
-      sessionStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(TOKEN_KEY)
     }
     scheduleRefresh(expiresAt)
   }, [scheduleRefresh])
@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
     }
     setAccessTokenState(null)
     setUserInfo(null)
-    sessionStorage.clear()
+    localStorage.removeItem(TOKEN_KEY)
   }, [accessToken, setUserInfo])
 
   // Cleanup timer on unmount
