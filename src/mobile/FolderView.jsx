@@ -3,7 +3,13 @@ import { useAuth } from '../auth/auth-context.jsx'
 import { listFolderContents, listSharedDrives } from '../drive/drive-api.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
-const PDF_MIME    = 'application/pdf'
+
+const EXTERNAL_TYPES = {
+  'application/pdf':                           { badge: 'PDF',   url: id => `https://drive.google.com/file/d/${id}/view` },
+  'application/vnd.google-apps.document':      { badge: 'DOC',   url: id => `https://docs.google.com/document/d/${id}/edit` },
+  'application/vnd.google-apps.spreadsheet':   { badge: 'SHEET', url: id => `https://docs.google.com/spreadsheets/d/${id}/edit` },
+  'application/vnd.google-apps.presentation':  { badge: 'SLIDE', url: id => `https://docs.google.com/presentation/d/${id}/edit` },
+}
 
 function formatDate(iso) {
   if (!iso) return ''
@@ -36,7 +42,7 @@ export default function FolderView({ folder, title, onBack, onFolderPush, onFile
           name: item.name,
           mimeType: item.mimeType,
           isFolder: item.mimeType === FOLDER_MIME,
-          isPdf: item.mimeType === PDF_MIME,
+          external: EXTERNAL_TYPES[item.mimeType] ?? null,
           modifiedTime: item.modifiedTime,
         }))
       }
@@ -85,17 +91,17 @@ export default function FolderView({ folder, title, onBack, onFolderPush, onFile
         ))}
 
         {files.map(item => {
-          if (item.isPdf) {
+          if (item.external) {
             return (
               <a
                 key={item.id}
-                className="fv-row fv-file fv-file-pdf"
-                href={`https://drive.google.com/file/d/${item.id}/view`}
+                className="fv-row fv-file fv-file-external"
+                href={item.external.url(item.id)}
                 target="_blank"
                 rel="noreferrer"
               >
-                <span className="fv-row-name">{item.name.replace(/\.pdf$/i, '')}</span>
-                <span className="fv-badge">PDF</span>
+                <span className="fv-row-name">{item.name.replace(/\.\w+$/i, '')}</span>
+                <span className="fv-badge">{item.external.badge}</span>
               </a>
             )
           }

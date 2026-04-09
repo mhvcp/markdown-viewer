@@ -3,7 +3,14 @@ import { useAuth } from '../auth/auth-context.jsx'
 import { listFolderContents, listSharedDrives } from './drive-api.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
-const PDF_MIME    = 'application/pdf'
+
+// Non-markdown file types: badge label + URL to open
+const EXTERNAL_TYPES = {
+  'application/pdf':                           { badge: 'PDF',   url: id => `https://drive.google.com/file/d/${id}/view` },
+  'application/vnd.google-apps.document':      { badge: 'DOC',   url: id => `https://docs.google.com/document/d/${id}/edit` },
+  'application/vnd.google-apps.spreadsheet':   { badge: 'SHEET', url: id => `https://docs.google.com/spreadsheets/d/${id}/edit` },
+  'application/vnd.google-apps.presentation':  { badge: 'SLIDE', url: id => `https://docs.google.com/presentation/d/${id}/edit` },
+}
 
 function formatDate(iso) {
   if (!iso) return ''
@@ -51,28 +58,25 @@ function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNe
   const indent = depth * 14 // px per level
 
   if (!isFolder) {
-    const isPdf    = entry.mimeType === PDF_MIME
-    const isActive = !isPdf && entry.id === currentFileId
-    const label    = isPdf
-      ? entry.name.replace(/\.pdf$/i, '')
-      : entry.name.replace(/\.md$/i, '')
-
-    if (isPdf) {
+    const external = EXTERNAL_TYPES[entry.mimeType]
+    if (external) {
+      const label = entry.name.replace(/\.\w+$/i, '')
       return (
         <a
-          className="tree-file tree-file-pdf"
+          className="tree-file tree-file-external"
           style={{ paddingLeft: 16 + indent }}
-          href={`https://drive.google.com/file/d/${entry.id}/view`}
+          href={external.url(entry.id)}
           target="_blank"
           rel="noreferrer"
           title={entry.name}
         >
           <span className="tree-file-name">{label}</span>
-          <span className="tree-file-badge">PDF</span>
+          <span className="tree-file-badge">{external.badge}</span>
         </a>
       )
     }
 
+    const isActive = entry.id === currentFileId
     return (
       <button
         className={`tree-file${isActive ? ' active' : ''}`}
@@ -80,7 +84,7 @@ function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNe
         onClick={() => onFilePicked({ id: entry.id, name: entry.name })}
         title={entry.name}
       >
-        <span className="tree-file-name">{label}</span>
+        <span className="tree-file-name">{entry.name.replace(/\.md$/i, '')}</span>
         <span className="tree-file-date">{formatDate(entry.modifiedTime)}</span>
       </button>
     )

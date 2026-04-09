@@ -642,11 +642,11 @@ body.sidebar-resizing {
   border-radius: 3px;
   padding: 1px 4px;
 }
-a.tree-file-pdf {
+a.tree-file-external {
   text-decoration: none;
   color: var(--text-3);
 }
-a.tree-file-pdf:hover { background: var(--bg-hover); color: var(--text-2); }
+a.tree-file-external:hover { background: var(--bg-hover); color: var(--text-2); }
 
 .tree-children { border-left: 1px solid var(--border); margin-left: 16px; }
 
