@@ -324,6 +324,39 @@
   font-weight: 600;
 }
 
+/* Move button — hidden on desktop, visible on mobile */
+.kanban-card-move-btn {
+  display: none;
+}
+
+/* Move-to picker (inline status selector) */
+.kanban-card-mover {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.kanban-card-mover-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.kanban-card-mover-btn:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Mobile */
 @media (max-width: 767px) {
   .kanban-header {
@@ -343,6 +376,12 @@
     max-width: unset;
   }
 
+  /* Give each column body a minimum height so empty columns are still
+     large enough to be a usable drop target */
+  .kanban-column-body {
+    min-height: 80px;
+  }
+
   .kanban-filters {
     flex-wrap: wrap;
     gap: 8px;
@@ -351,5 +390,32 @@
 
   .kanban-filter-group {
     flex-wrap: wrap;
+  }
+
+  /* Show the move button on mobile */
+  .kanban-card-move-btn {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-3);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .kanban-card-move-btn:active {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Larger tap targets on cards */
+  .kanban-card {
+    padding: 12px 14px;
   }
 }
