@@ -11,6 +11,7 @@ A mobile-first collaborative markdown editor backed by Google Drive. Supports re
 - **Source editor** (CodeMirror 6) with syntax highlighting, line numbers, and markdown language support
 - **Split view** on desktop: raw markdown left, rendered preview right
 - Inline **bubble menu** when text is selected: bold, italic, highlight, insert, delete, comment
+- Full **table rendering** — pipe tables in markdown render as formatted tables in the editor and round-trip correctly on save
 
 ### Track Changes (CriticMarkup)
 Full implementation of the [CriticMarkup](https://criticmarkup.com/) standard:
@@ -38,6 +39,7 @@ Full implementation of the [CriticMarkup](https://criticmarkup.com/) standard:
 - Create new files from within the app
 - Auto-saves 2 seconds after the last keystroke; manual save via **Cmd/Ctrl+S**
 - Save status indicator (Unsaved → Saving… → Saved)
+- Non-markdown files (PDFs, Google Docs, Sheets, Slides) appear in the file browser with a type badge and open in the appropriate Google viewer in a new tab
 
 ### Kanban Board
 - Automatically finds all `board.md` files across your Drive

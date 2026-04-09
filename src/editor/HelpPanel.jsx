@@ -50,6 +50,15 @@ Gemini uses your existing Google login — no separate API key needed.
 - Shared drives appear at the root alongside My Drive
 - Tap **New** in the header to create a new file in the current folder
 
+Non-markdown files are shown with a type badge and open in a new tab:
+
+| Badge | Type | Opens in |
+|-------|------|----------|
+| PDF | PDF file | Google Drive viewer |
+| DOC | Google Doc | Google Docs |
+| SHEET | Google Sheet | Google Sheets |
+| SLIDE | Google Slides | Google Slides |
+
 ---
 
 ## Views (Editor)
