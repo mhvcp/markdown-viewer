@@ -9,6 +9,10 @@ import {
 } from "react";
 import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableHeader from "@tiptap/extension-table-header";
+import TableCell from "@tiptap/extension-table-cell";
 import { marked } from "marked";
 import { criticMarkupPlugin } from "../criticmarkup/marked-plugin.js";
 import {
@@ -105,6 +109,10 @@ const TiptapPane = forwardRef(function TiptapPane(
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       ...CRITIC_MARK_EXTENSIONS,
       TrackChanges.configure({ tracking, author }),
     ],

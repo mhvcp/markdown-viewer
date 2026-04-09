@@ -91,6 +91,29 @@ function serializeBlockNode(node, ctx = { listDepth: 0, ordered: false, start: 1
     case 'listItem':
       return serializeListItem(node, ctx)
 
+    case 'table': {
+      const rows = node.content || []
+      if (!rows.length) return ''
+      const rendered = rows.map(row => {
+        const cells = (row.content || []).map(cell => {
+          return serializeInlineChildren(cell).replace(/\|/g, '\\|')
+        })
+        return `| ${cells.join(' | ')} |`
+      })
+      // Insert separator after first row (header)
+      const firstRow = node.content?.[0]
+      const colCount = (firstRow?.content || []).length
+      const sep = `| ${Array(colCount).fill('---').join(' | ')} |`
+      rendered.splice(1, 0, sep)
+      return rendered.join('\n')
+    }
+
+    // tableRow / tableHeader / tableCell are handled inside 'table' above
+    case 'tableRow':
+    case 'tableHeader':
+    case 'tableCell':
+      return serializeInlineChildren(node)
+
     default:
       return serializeInlineChildren(node)
   }
