@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth/auth-context.jsx'
-import { listFolderContents, listSharedDrives } from '../drive/drive-api.js'
+import { listFolderContents, listSharedDrives, trashFile } from '../drive/drive-api.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
 
@@ -17,16 +17,18 @@ function formatDate(iso) {
 }
 
 export default function FolderView({ folder, title, onBack, onFolderPush, onFilePick, onNewFile }) {
-  // folder: { id, name } or null for root
   const { accessToken } = useAuth()
   const [items, setItems] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [confirmId, setConfirmId] = useState(null)   // id of file pending delete confirm
+  const [deleting, setDeleting] = useState(null)     // id currently being deleted
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     setItems(null)
+    setConfirmId(null)
     try {
       let result
       if (!folder) {
@@ -55,6 +57,30 @@ export default function FolderView({ folder, title, onBack, onFolderPush, onFile
   }, [folder?.id, accessToken]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
+
+  async function handleDelete(e, id) {
+    e.stopPropagation()
+    if (confirmId !== id) {
+      setConfirmId(id)
+      return
+    }
+    // Second tap — confirmed
+    setConfirmId(null)
+    setDeleting(id)
+    try {
+      await trashFile(accessToken, id)
+      setItems(prev => prev.filter(i => i.id !== id))
+    } catch (err) {
+      setError(`Delete failed: ${err.message}`)
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  function cancelConfirm(e) {
+    e.stopPropagation()
+    setConfirmId(null)
+  }
 
   const folders = items?.filter(i => i.isFolder) ?? []
   const files   = items?.filter(i => !i.isFolder) ?? []
@@ -91,6 +117,9 @@ export default function FolderView({ folder, title, onBack, onFolderPush, onFile
         ))}
 
         {files.map(item => {
+          const isConfirming = confirmId === item.id
+          const isDeleting   = deleting === item.id
+
           if (item.external) {
             return (
               <a
@@ -105,15 +134,39 @@ export default function FolderView({ folder, title, onBack, onFolderPush, onFile
               </a>
             )
           }
+
           return (
-            <button
-              key={item.id}
-              className="fv-row fv-file"
-              onClick={() => onFilePick({ id: item.id, name: item.name })}
-            >
-              <span className="fv-row-name">{item.name.replace(/\.md$/i, '')}</span>
-              <span className="fv-date">{formatDate(item.modifiedTime)}</span>
-            </button>
+            <div key={item.id} className={`fv-row fv-file fv-file-row${isConfirming ? ' fv-confirming' : ''}`}>
+              <button
+                className="fv-file-main"
+                onClick={() => !isConfirming && onFilePick({ id: item.id, name: item.name })}
+                disabled={isDeleting}
+              >
+                <span className="fv-row-name">{item.name.replace(/\.md$/i, '')}</span>
+                <span className="fv-date">{formatDate(item.modifiedTime)}</span>
+              </button>
+
+              {isConfirming ? (
+                <span className="fv-delete-confirm">
+                  <button className="fv-delete-yes" onClick={e => handleDelete(e, item.id)}>
+                    Trash
+                  </button>
+                  <button className="fv-delete-cancel" onClick={cancelConfirm}>
+                    ✕
+                  </button>
+                </span>
+              ) : (
+                <button
+                  className="fv-delete-btn"
+                  onClick={e => handleDelete(e, item.id)}
+                  disabled={isDeleting}
+                  title="Move to trash"
+                  aria-label="Delete file"
+                >
+                  {isDeleting ? '…' : '🗑'}
+                </button>
+              )}
+            </div>
           )
         })}
 

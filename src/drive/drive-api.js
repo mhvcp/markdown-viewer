@@ -215,6 +215,16 @@ export async function getBoardLabel(token, fileId) {
 }
 
 // List all Shared Drives the user is a member of
+export async function trashFile(token, fileId) {
+  const params = new URLSearchParams({ supportsAllDrives: "true" });
+  const res = await fetch(`${BASE}/files/${fileId}?${params}`, {
+    method: "PATCH",
+    headers: authHeaders(token, { "Content-Type": "application/json" }),
+    body: JSON.stringify({ trashed: true }),
+  });
+  if (!res.ok) throw new Error(`Trash file failed: ${res.status}`);
+}
+
 export async function listSharedDrives(token) {
   const params = new URLSearchParams({
     fields: "drives(id,name)",
