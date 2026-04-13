@@ -78,7 +78,8 @@ export function criticMarkupPlugin() {
         return `<h${depth}>${html}</h${depth}>\n`
       },
       listitem({ tokens }) {
-        let html = this.parser.parseInline(tokens)
+        const hasBlock = tokens.some(t => t.type === 'paragraph' || t.type === 'list' || t.type === 'space')
+        let html = hasBlock ? this.parser.parse(tokens) : this.parser.parseInline(tokens)
         html = applyCriticMarkup(html)
         return `<li>${html}</li>\n`
       },
