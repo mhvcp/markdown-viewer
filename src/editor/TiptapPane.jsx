@@ -3,11 +3,10 @@ import {
   useImperativeHandle,
   useRef,
   forwardRef,
-  useState,
   useCallback,
   useMemo,
 } from "react";
-import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
@@ -93,11 +92,10 @@ const CRITIC_MARK_EXTENSIONS = [
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const TiptapPane = forwardRef(function TiptapPane(
-  { content, onChange, onCommentRequest, tracking = false, author = "" },
+  { content, onChange, tracking = false, author = "" },
   ref,
 ) {
   const lastMd = useRef(content);
-  const [tapComment, setTapComment] = useState(null);
   // Store raw frontmatter block so we can prepend it back on serialization
   const frontmatterRef = useRef(extractRawFrontmatter(content));
   // Extract frontmatter fields for rendering as a React component
@@ -169,29 +167,6 @@ const TiptapPane = forwardRef(function TiptapPane(
     }
   }, [editor, tracking, author]);
 
-  // Tap/click on critic-comment nodes → show popover
-  useEffect(() => {
-    const el = editor?.view?.dom;
-    if (!el) return;
-    const handler = (e) => {
-      const comment = e.target.closest(".critic-comment");
-      if (comment) {
-        e.preventDefault();
-        const rect = comment.getBoundingClientRect();
-        setTapComment({
-          author: comment.dataset.author || "",
-          date: comment.dataset.date || "",
-          text: (comment.getAttribute("title") || "").replace(/^.*?\):\s*/, ""),
-          x: Math.min(rect.left, window.innerWidth - 288),
-          y: rect.bottom + 6,
-        });
-      } else if (!e.target.closest(".ctp-close")) {
-        setTapComment(null);
-      }
-    };
-    el.addEventListener("click", handler);
-    return () => el.removeEventListener("click", handler);
-  }, [editor]);
 
   // Expose methods to Editor parent via ref
   useImperativeHandle(
@@ -242,91 +217,8 @@ const TiptapPane = forwardRef(function TiptapPane(
     [editor],
   );
 
-  const isEditable = !!onChange;
-
-  // ── Bubble menu button handler ─────────────────────────────────────────────
-  const handleComment = useCallback(() => {
-    if (!editor) return;
-    const { from, to } = editor.state.selection;
-    const text = editor.state.doc.textBetween(from, to, " ");
-    onCommentRequest?.(text);
-  }, [editor, onCommentRequest]);
-
-  const isActive = (name) => editor?.isActive(name);
-
   return (
     <div className={`tiptap-wrap${tracking ? "" : " no-track"}`}>
-      {editor && isEditable && (
-        <BubbleMenu
-          editor={editor}
-          tippyOptions={{ duration: 150, placement: "top", maxWidth: "none" }}
-          className="tiptap-bubble"
-        >
-          <button
-            className={`tb-btn tb-comment`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              handleComment();
-            }}
-            title="Add comment"
-          >
-            💬
-          </button>
-          <span className="tb-sep" />
-          <button
-            className={`tb-btn tb-highlight ${isActive("criticHighlight") ? "on" : ""}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              editor.chain().focus().toggleMark("criticHighlight").run();
-            }}
-            title="Highlight"
-          >
-            H
-          </button>
-          <button
-            className={`tb-btn tb-insert ${isActive("criticInsertion") ? "on" : ""}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              editor.chain().focus().toggleMark("criticInsertion").run();
-            }}
-            title="Mark as insertion"
-          >
-            +
-          </button>
-          <button
-            className={`tb-btn tb-delete ${isActive("criticDeletion") ? "on" : ""}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              editor.chain().focus().toggleMark("criticDeletion").run();
-            }}
-            title="Mark as deletion"
-          >
-            −
-          </button>
-          <span className="tb-sep" />
-          <button
-            className={`tb-btn ${isActive("bold") ? "on" : ""}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              editor.chain().focus().toggleBold().run();
-            }}
-            title="Bold"
-          >
-            <b>B</b>
-          </button>
-          <button
-            className={`tb-btn ${isActive("italic") ? "on" : ""}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              editor.chain().focus().toggleItalic().run();
-            }}
-            title="Italic"
-          >
-            <i>I</i>
-          </button>
-        </BubbleMenu>
-      )}
-
       <div className="tiptap-content">
         {frontmatterFields && (
           <div className="frontmatter-table">
@@ -347,21 +239,6 @@ const TiptapPane = forwardRef(function TiptapPane(
         <EditorContent editor={editor} />
       </div>
 
-      {tapComment && (
-        <div
-          className="comment-tap-popover"
-          style={{ position: "fixed", left: tapComment.x, top: tapComment.y }}
-        >
-          <div className="ctp-header">
-            <strong>{tapComment.author}</strong>
-            <time>{tapComment.date}</time>
-            <button className="ctp-close" onClick={() => setTapComment(null)}>
-              ✕
-            </button>
-          </div>
-          <p className="ctp-text">{tapComment.text}</p>
-        </div>
-      )}
     </div>
   );
 });

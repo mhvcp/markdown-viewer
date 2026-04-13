@@ -17,7 +17,7 @@ export default function CommentDialog({ selectedText, onInsert, onClose }) {
     e.preventDefault()
     if (!handle.trim() || !text.trim()) return
     const markup = buildCommentInsertion(handle.trim(), text.trim(), selectedText || '')
-    onInsert(markup)
+    onInsert(markup, handle.trim(), text.trim())
   }
 
   const handleKeyDown = (e) => {

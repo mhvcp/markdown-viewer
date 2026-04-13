@@ -565,7 +565,6 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
                 ref={tiptapRef}
                 content={content}
                 onChange={setContent}
-                onCommentRequest={openCommentDialog}
                 tracking={isTracking}
                 author={
                   userInfo?.email?.split("@")[0] ||

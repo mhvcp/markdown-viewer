@@ -188,6 +188,7 @@ export async function findBoardFiles(token) {
   const q = "name='board.md' and trashed=false";
   const params = new URLSearchParams({
     q,
+    corpora: "allDrives",
     fields: "files(id,name,parents,modifiedTime)",
     pageSize: "100",
     ...SHARED,
