@@ -3,6 +3,16 @@ import { useAuth } from '../auth/auth-context.jsx'
 import { listFolderContents, listSharedDrives } from './drive-api.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
+const EXPANDED_KEY = 'vcp_expanded_folders'
+
+function readExpanded() {
+  try { return new Set(JSON.parse(localStorage.getItem(EXPANDED_KEY))) }
+  catch { return new Set() }
+}
+
+function saveExpanded(set) {
+  localStorage.setItem(EXPANDED_KEY, JSON.stringify([...set]))
+}
 
 // Non-markdown file types: badge label + URL to open
 const EXTERNAL_TYPES = {
@@ -19,9 +29,10 @@ function formatDate(iso) {
 
 // ── Single tree node (folder or file) ────────────────────────────────────────
 
-function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNewFile, onFolderChange, refreshTarget }) {
+function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNewFile, onFolderChange, refreshTarget, expandedIds, onToggleExpand }) {
   const isFolder = entry.mimeType === FOLDER_MIME || entry._isFolder
-  const [open, setOpen] = useState(false)
+  const wasExpanded = isFolder && expandedIds.has(entry.id)
+  const [open, setOpen] = useState(wasExpanded)
   const [children, setChildren] = useState(null) // null = not loaded yet
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
@@ -39,6 +50,13 @@ function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNe
     }
   }, [accessToken, entry.id])
 
+  // Auto-expand on mount if this folder was previously expanded
+  useEffect(() => {
+    if (wasExpanded && children === null) {
+      loadChildren()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Reload this folder's children when a file was just created inside it
   useEffect(() => {
     if (refreshTarget?.id === entry.id && refreshTarget?.key && open) {
@@ -47,12 +65,13 @@ function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNe
   }, [refreshTarget?.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = async () => {
-    if (open) { setOpen(false); return }
+    if (open) { setOpen(false); onToggleExpand(entry.id, false); return }
     onFolderChange?.({ id: entry.id, name: entry.name })
     if (children === null) {
       await loadChildren()
     }
     setOpen(true)
+    onToggleExpand(entry.id, true)
   }
 
   const indent = depth * 14 // px per level
@@ -122,13 +141,15 @@ function TreeNode({ entry, depth, currentFileId, accessToken, onFilePicked, onNe
             <TreeNode key={c.id} entry={{ ...c, _isFolder: true }} depth={depth + 1}
               currentFileId={currentFileId} accessToken={accessToken}
               onFilePicked={onFilePicked} onNewFile={onNewFile}
-              onFolderChange={onFolderChange} refreshTarget={refreshTarget} />
+              onFolderChange={onFolderChange} refreshTarget={refreshTarget}
+              expandedIds={expandedIds} onToggleExpand={onToggleExpand} />
           ))}
           {files.map(c => (
             <TreeNode key={c.id} entry={c} depth={depth + 1}
               currentFileId={currentFileId} accessToken={accessToken}
               onFilePicked={onFilePicked} onNewFile={onNewFile}
-              onFolderChange={onFolderChange} refreshTarget={refreshTarget} />
+              onFolderChange={onFolderChange} refreshTarget={refreshTarget}
+              expandedIds={expandedIds} onToggleExpand={onToggleExpand} />
           ))}
           {folders.length === 0 && files.length === 0 && (
             <div className="tree-status" style={{ paddingLeft: 18 + (depth + 1) * 14 }}>empty</div>
@@ -145,6 +166,16 @@ export default function FolderBrowser({ currentFileId, onFilePicked, onNewFileIn
   const { accessToken } = useAuth()
   const [roots, setRoots] = useState(null)   // null = loading
   const [err, setErr]     = useState(null)
+  const [expandedIds, setExpandedIds] = useState(readExpanded)
+
+  const handleToggleExpand = useCallback((id, isOpen) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (isOpen) next.add(id); else next.delete(id)
+      saveExpanded(next)
+      return next
+    })
+  }, [])
 
   const loadRoots = useCallback(async () => {
     setErr(null)
@@ -194,6 +225,8 @@ export default function FolderBrowser({ currentFileId, onFilePicked, onNewFileIn
             onNewFile={onNewFileInFolder}
             onFolderChange={onFolderChange}
             refreshTarget={refreshTarget}
+            expandedIds={expandedIds}
+            onToggleExpand={handleToggleExpand}
           />
         ))}
       </div>

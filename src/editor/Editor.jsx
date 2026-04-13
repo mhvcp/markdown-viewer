@@ -14,90 +14,7 @@ import {
   rejectAll,
 } from "../criticmarkup/syntax.js";
 import HelpPanel from "./HelpPanel.jsx";
-
-const WELCOME = `# VCP Markdown Editor
-
-A mobile-first collaborative review editor backed by Google Drive.
-
----
-
-## Getting started
-
-1. **Open a file** — tap ☰ to open the file browser, navigate your Drive or shared drives, and tap any \`.md\` file.
-2. **Edit** — the preview pane is your main editing surface. Tap anywhere to start writing.
-3. **Save** — edits are auto-saved 2 seconds after you stop typing. Tap **Save** in the header to save immediately. Use **Cmd/Ctrl + S** on desktop.
-
----
-
-## Views
-
-| Button | Mode | Description |
-|--------|------|-------------|
-| Split | Side by side | Raw markdown on the left, rendered preview on the right |
-| Editor | Source only | Full-screen raw markdown (CodeMirror) |
-| Review | Preview only | Full-screen rendered preview — **primary editing surface** |
-
-On mobile the view switches to Review by default. Use the tab bar at the bottom to switch modes.
-
----
-
-## Review & track changes
-
-### Inline markup (bubble menu)
-Select any text in the preview to reveal the floating toolbar:
-
-- **💬** — add a comment anchored to the selection
-- **H** — highlight the selection {== like this ==}
-- **+** — mark as insertion {++ like this ++}
-- **−** — mark as deletion {-- like this --}
-- **B / I** — bold / italic
-
-### Track changes mode
-Toggle **Track** in the toolbar (or the Track tab on mobile). While active, every edit you make is automatically wrapped in CriticMarkup when you finish a paragraph:
-
-- New words → {++ inserted ++}
-- Removed words → {-- deleted --}
-- Replaced words → {~~ old ~> new ~~}
-
-### Comments
-Tap **💬** in the toolbar or select text and tap 💬 in the bubble menu. Enter your handle and comment text. Comments are stored as {>> @handle (date): text <<} and shown as an inline badge.
-
----
-
-## CriticMarkup reference
-
-\`\`\`
-{++ inserted text ++}
-{-- deleted text --}
-{== highlighted text ==}
-{~~ old text ~> new text ~~}
-{>> @handle (2026-04-07): comment text <<}
-\`\`\`
-
----
-
-## File browser
-
-- Tap **☰** to toggle the sidebar
-- Tap **▸** next to a folder to expand it (lazy-loaded)
-- Tap a file name to open it
-- Tap **New** in the header to create a new \`.md\` file in the current folder
-- Shared drives appear alongside My Drive at the root level
-
----
-
-## Keyboard shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| Cmd/Ctrl + S | Save |
-| Cmd/Ctrl + B | Bold |
-| Cmd/Ctrl + I | Italic |
-
----
-
-*Powered by Tiptap · Google Drive API · CriticMarkup*
-`;
+import HomeScreen, { pushRecent } from "./HomeScreen.jsx";
 
 const LAST_FILE_KEY = "vcp_last_file";
 
@@ -108,10 +25,10 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
   const tiptapRef = useRef(null);
   const autosaveTimer = useRef(null);
 
-  const [content, setContent] = useState(WELCOME);
+  const [content, setContent] = useState("");
   const [currentFile, setCurrentFile] = useState(() => {
     try {
-      return JSON.parse(sessionStorage.getItem(LAST_FILE_KEY));
+      return JSON.parse(localStorage.getItem(LAST_FILE_KEY));
     } catch {
       return null;
     }
@@ -179,7 +96,7 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
     if (hideSidebar) return;
     const urlFileId = new URLSearchParams(location.search).get('file');
     const stored = (() => {
-      try { return JSON.parse(sessionStorage.getItem(LAST_FILE_KEY)); } catch { return null; }
+      try { return JSON.parse(localStorage.getItem(LAST_FILE_KEY)); } catch { return null; }
     })();
     const fileId = urlFileId || stored?.id;
     if (!fileId) return;
@@ -194,11 +111,12 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
         setContent(text);
         setCurrentFile({ id: fileId, name });
         setIsTracking(hasCriticMarkup(text));
-        sessionStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id: fileId, name }));
+        localStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id: fileId, name }));
+        pushRecent({ id: fileId, name });
         history.replaceState(null, '', '?file=' + fileId);
       } catch {
         setCurrentFile(null);
-        sessionStorage.removeItem(LAST_FILE_KEY);
+        localStorage.removeItem(LAST_FILE_KEY);
       }
     };
     load();
@@ -212,7 +130,8 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
         setContent(text);
         setCurrentFile({ id: fileToOpen.id, name: fileToOpen.name });
         setIsTracking(hasCriticMarkup(text));
-        sessionStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id: fileToOpen.id, name: fileToOpen.name }));
+        localStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id: fileToOpen.id, name: fileToOpen.name }));
+        pushRecent({ id: fileToOpen.id, name: fileToOpen.name });
         history.replaceState(null, '', '?file=' + fileToOpen.id);
         setSaveStatus("");
       })
@@ -256,7 +175,8 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
         setContent(text);
         setCurrentFile({ id, name });
         setIsTracking(hasCriticMarkup(text));
-        sessionStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id, name }));
+        localStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id, name }));
+        pushRecent({ id, name });
         history.replaceState(null, '', '?file=' + id);
         setSaveStatus("");
       } catch (err) {
@@ -333,7 +253,8 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
         setContent("");
       }
       setCurrentFile({ id, name });
-      sessionStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id, name }));
+      localStorage.setItem(LAST_FILE_KEY, JSON.stringify({ id, name }));
+      pushRecent({ id, name });
       history.replaceState(null, '', '?file=' + id);
       setSaveStatus("");
       // Refresh the parent folder in the tree so the new file appears
@@ -385,7 +306,16 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
       {/* Header */}
       <header className="editor-header">
         <div className="header-left">
-          <span className="app-title desktop-only">VCP MD</span>
+          <button
+            className="app-title desktop-only"
+            onClick={() => {
+              setCurrentFile(null);
+              setContent("");
+              localStorage.removeItem(LAST_FILE_KEY);
+              history.replaceState(null, '', location.pathname);
+            }}
+            title="Home"
+          >VCP MD</button>
           {hideSidebar ? (
             onBack && (
               <button className="mobile-back-btn" onClick={onBack} title="Back to files">
@@ -548,36 +478,43 @@ export default function Editor({ onOpenCapture, onOpenKanban, hideSidebar, onBac
           </>
         )}
 
-        <div className={`editor-body view-${effectiveView}`}>
-          {(effectiveView === "split" || effectiveView === "editor") && (
-            <div className="editor-pane">
-              <CodeMirrorPane
-                ref={editorRef}
-                content={content}
-                onChange={setContent}
-                darkMode={darkMode}
-              />
-            </div>
-          )}
-          {(effectiveView === "split" || effectiveView === "preview") && (
-            <div className="preview-pane">
-              <TiptapPane
-                ref={tiptapRef}
-                content={content}
-                onChange={setContent}
-                tracking={isTracking}
-                author={
-                  userInfo?.email?.split("@")[0] ||
-                  userInfo?.name
-                    ?.split(" ")
-                    .map((p) => p[0].toLowerCase())
-                    .join("") ||
-                  ""
-                }
-              />
-            </div>
-          )}
-        </div>
+        {!currentFile && !hideSidebar ? (
+          <HomeScreen
+            onFilePicked={handleFilePicked}
+            onToggleSidebar={() => setSidebarOpen(true)}
+          />
+        ) : (
+          <div className={`editor-body view-${effectiveView}`}>
+            {(effectiveView === "split" || effectiveView === "editor") && (
+              <div className="editor-pane">
+                <CodeMirrorPane
+                  ref={editorRef}
+                  content={content}
+                  onChange={setContent}
+                  darkMode={darkMode}
+                />
+              </div>
+            )}
+            {(effectiveView === "split" || effectiveView === "preview") && (
+              <div className="preview-pane">
+                <TiptapPane
+                  ref={tiptapRef}
+                  content={content}
+                  onChange={setContent}
+                  tracking={isTracking}
+                  author={
+                    userInfo?.email?.split("@")[0] ||
+                    userInfo?.name
+                      ?.split(" ")
+                      .map((p) => p[0].toLowerCase())
+                      .join("") ||
+                    ""
+                  }
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Comment dialog */}
