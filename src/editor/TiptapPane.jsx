@@ -12,6 +12,8 @@ import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import { marked } from "marked";
 import { criticMarkupPlugin } from "../criticmarkup/marked-plugin.js";
 import {
@@ -65,11 +67,42 @@ function extractFrontmatter(md) {
   return { body, frontmatter: fields.length ? fields : null };
 }
 
+// Convert marked's checkbox list HTML to Tiptap TaskList/TaskItem format.
+// marked:  <ul><li><input checked="" disabled="" type="checkbox"> text</li></ul>
+// tiptap:  <ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>text</p></li></ul>
+function convertCheckboxLists(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${html}</body>`, "text/html");
+  for (const ul of doc.querySelectorAll("ul")) {
+    const lis = [...ul.children];
+    const isTaskList = lis.length > 0 && lis.every(
+      (li) => li.tagName === "LI" && li.querySelector('input[type="checkbox"]'),
+    );
+    if (!isTaskList) continue;
+    ul.setAttribute("data-type", "taskList");
+    for (const li of lis) {
+      const cb = li.querySelector('input[type="checkbox"]');
+      const checked = cb?.hasAttribute("checked") || false;
+      li.setAttribute("data-type", "taskItem");
+      li.setAttribute("data-checked", String(checked));
+      cb?.remove();
+      // Wrap remaining inline content in <p> if not already block-level
+      if (!li.querySelector("p, div, blockquote, ul, ol")) {
+        const p = doc.createElement("p");
+        while (li.firstChild) p.appendChild(li.firstChild);
+        li.appendChild(p);
+      }
+    }
+  }
+  return doc.body.innerHTML;
+}
+
 // Convert markdown → HTML for Tiptap input (frontmatter stripped, rendered separately)
 function markdownToHtml(md) {
   try {
     const { body } = extractFrontmatter(md);
-    return marked.parse(body);
+    const html = marked.parse(body);
+    return convertCheckboxLists(html);
   } catch {
     return `<p>${md}</p>`;
   }
@@ -111,6 +144,8 @@ const TiptapPane = forwardRef(function TiptapPane(
       TableRow,
       TableHeader,
       TableCell,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       ...CRITIC_MARK_EXTENSIONS,
       TrackChanges.configure({ tracking, author }),
     ],

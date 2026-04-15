@@ -75,6 +75,15 @@ function serializeBlockNode(node, ctx = { listDepth: 0, ordered: false, start: 1
     case 'horizontalRule':
       return '---'
 
+    case 'taskList': {
+      return (node.content || [])
+        .map(item => serializeTaskItem(item, { listDepth: ctx.listDepth }))
+        .join('\n')
+    }
+
+    case 'taskItem':
+      return serializeTaskItem(node, ctx)
+
     case 'bulletList': {
       return (node.content || [])
         .map(item => serializeListItem(item, { listDepth: ctx.listDepth, ordered: false }))
@@ -117,6 +126,16 @@ function serializeBlockNode(node, ctx = { listDepth: 0, ordered: false, start: 1
     default:
       return serializeInlineChildren(node)
   }
+}
+
+function serializeTaskItem(node, ctx) {
+  const indent = '  '.repeat(ctx.listDepth || 0)
+  const check = node.attrs?.checked ? 'x' : ' '
+  const children = node.content || []
+  const [first, ...rest] = children
+  const firstText = first ? serializeBlockNode(first, { listDepth: (ctx.listDepth || 0) + 1 }) : ''
+  const restText = rest.map(child => serializeBlockNode(child, ctx)).join('\n')
+  return `${indent}- [${check}] ${firstText}${restText ? '\n' + restText : ''}`
 }
 
 function serializeListItem(node, ctx) {
