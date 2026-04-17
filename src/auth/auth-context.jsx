@@ -35,6 +35,17 @@ export function AuthProvider({ children }) {
     if (!expiresAt) return
     const delay = expiresAt - Date.now()
     refreshTimerRef.current = setTimeout(() => {
+      // In standalone PWA mode, GIS popups hijack the main window and cause
+      // an infinite redirect loop.  Instead of silently refreshing, clear the
+      // token so the app falls back to the sign-in screen.
+      const standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true
+      if (standalone) {
+        setAccessTokenState(null)
+        localStorage.removeItem(TOKEN_KEY)
+        return
+      }
       tokenClientRef.current?.requestAccessToken({ prompt: '', login_hint: tokenClientRef.current._hint })
     }, Math.max(delay, 0))
   }, [])

@@ -10,13 +10,25 @@ const SCOPE = [
   'https://www.googleapis.com/auth/cloud-platform',
 ].join(' ')
 
+// In standalone PWA mode (iOS especially), window.open() navigates the main
+// window instead of opening a popup, which causes an infinite redirect loop
+// when GIS tries silent re-auth.  Detect this so we can skip auto-refresh.
+function isStandalonePWA() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  )
+}
+
 export default function GoogleAuth() {
   const { setAccessToken, setUserInfo, setTokenClient, userInfo } = useAuth()
   const tokenClientRef = useRef(null)
   const [gisReady, setGisReady] = useState(false)
   // Only show "restoring" if we have a cached user but NO stored token (token expired)
   const hasStoredToken = !!localStorage.getItem('vcp_access_token')
-  const [restoring, setRestoring] = useState(!!userInfo && !hasStoredToken)
+  const standalone = isStandalonePWA()
+  // In standalone PWA mode, never auto-restore — go straight to sign-in button
+  const [restoring, setRestoring] = useState(!standalone && !!userInfo && !hasStoredToken)
 
   useEffect(() => {
     const init = () => {
@@ -47,8 +59,9 @@ export default function GoogleAuth() {
       setTokenClient(client)
       setGisReady(true)
 
-      // Only do a silent restore if token expired (no stored token) but we know the user
-      if (userInfo && !hasStoredToken) {
+      // Only do a silent restore if token expired (no stored token) but we know the user.
+      // Skip in standalone PWA — popup would hijack the main window and loop.
+      if (!standalone && userInfo && !hasStoredToken) {
         client.requestAccessToken({ prompt: '', login_hint: userInfo.email })
       }
     }
